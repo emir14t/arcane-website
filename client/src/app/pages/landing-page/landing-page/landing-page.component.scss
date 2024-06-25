@@ -1,108 +1,203 @@
-body, html {
-  height: 100vh;
-  width: 100%;
-  margin: 0;
-  padding: 10pt;
-  overflow-y: scroll;
-  overflow-x: hidden;
+@import '../../../../styles';
+
+.landing-page {
+  font-family: $primary-font;
+  background-color: $white-color;
+
+  .hero-section {
+    padding: 50px 20px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+
+    .hero-content {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      width: 100%;
+
+      .logo-and-text {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+
+        h1 {
+          font-size: 1.5rem;
+          margin-bottom: 10px;
+          color: $thernari-color;
+          font-family: $primary-font;
+        }
+
+        p {
+          font-size: 1rem;
+          font-family: $secondary-font;
+        }
+
+        .logo {
+          // width: 100%;
+          max-width: 750px;
+        }
+      }
+    }
+  }
+
+  .mission-section {
+    padding: 50px 20px;
+    text-align: center;
+
+    h2 {
+      font-size: 2.5rem;
+      margin-bottom: 30px;
+    }
+
+    .mission-cards {
+      display: flex;
+      justify-content: space-around;
+      flex-wrap: wrap;
+
+      .card {
+        padding: 20px;
+        margin: 10px;
+        border-radius: 10px;
+        border-color: $thernari-color;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        flex: 1;
+        max-width: 300px;
+        text-align: left;
+
+        h3 {
+          font-size: 1.5rem;
+          margin-bottom: 10px;
+        }
+
+        p {
+          font-size: 1rem;
+          line-height: 1.5;
+        }
+      }
+    }
+  }
+
+  .about-us-section {
+    padding: 50px 20px;
+    text-align: center;
+
+    h2 {
+      font-size: 2.5rem;
+      margin-bottom: 20px;
+    }
+
+    p {
+      font-size: 1.2rem;
+      max-width: 800px;
+      margin: 0 auto;
+      line-height: 1.6;
+    }
+  }
+}
+
+
+// server css animation
+.container_SevMini {
+  border-radius: 10px;
   display: flex;
-  flex-direction: column;
-  background-color: rgb(28, 28, 28);
-  color: rgb(184, 98, 255);
-}
-
-header {
-  z-index: 100;
-}
-
-.content {
-  margin-top: 50pt;
-}
-
-.footer {
-  width: 100%;
-  height: fit-content;
-  margin-top: auto;
-  margin-bottom: 0;
-}
-
-.img-container {
-  height: 400pt;
-  position: relative;
-  width: 100%;
-  margin: 10pt auto 10pt auto;
-  overflow: hidden;
-}
-
-.img {
-  opacity: 40%;
-  height: 100%;
-  width:100%;
-  border: 2pt solid rgb(25, 0, 255);
-}
-
-.text-overlay {
-  display: flex;
-  flex-direction: column;
   justify-content: center;
   align-items: center;
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  color: white;
-  font-size: 1rem;
-  text-align: center;
-  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.7); /* Optional: add shadow to text */
-  font-weight: bold;
+  flex-direction: column;
 }
 
-.text-overlay h3 {
-  font-size: 3rem;
+.Ghost {
+  transform: translate(0px, -25px);
+  z-index: -1;
+  animation: opacidad 4s infinite ease-in-out;
 }
 
-/* Explore button */
-.button {
-  width: 110px;
-  height: 40px;
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  gap: 10px;
-  background-color: rgb(255, 20, 208);
-  border-radius: 30px;
-  color: rgb(19, 19, 19);
-  font-weight: 600;
-  border: none;
-  position: relative;
-  cursor: pointer;
-  transition-duration: .2s;
-  box-shadow: 5px 5px 10px rgba(0, 0, 0, 0.116);
-  padding-left: 8px;
-  transition-duration: .5s;
+@keyframes opacidad {
+  0% {
+    opacity: 1;
+    scale: 1;
+  }
+
+  50% {
+    opacity: 0.5;
+    scale: 0.9;
+  }
+
+  100% {
+    opacity: 1;
+    scale: 1;
+  }
 }
 
-.svgIcon {
-  height: 25px;
-  transition-duration: 1.5s;
+@keyframes estroboscopico {
+  0% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0;
+  }
+
+  51% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 1;
+  }
 }
 
-.bell path {
-  fill: rgb(19, 19, 19);
+@keyframes rebote {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-10px);
+  }
 }
 
-.button:hover {
-  background-color: rgb(134, 20, 255);
-  transition-duration: .5s;
+@keyframes estroboscopico1 {
+  0%,
+  50%,
+  100% {
+    fill: rgb(255, 95, 74);
+  }
+
+  25%,
+  75% {
+    fill: rgb(16, 53, 115);
+  }
 }
 
-.button:active {
-  transform: scale(0.97);
-  transition-duration: .2s;
+@keyframes estroboscopico2 {
+  0%,
+  50%,
+  100% {
+    fill: #17e300;
+  }
+
+  25%,
+  75% {
+    fill: #17e300b4;
+  }
 }
 
-.button:hover .svgIcon {
-  transform: rotate(250deg);
-  transition-duration: 1.5s;
+.SevMini {
+  animation: rebote 4s infinite ease-in-out;
+}
+
+#strobe_led1 {
+  animation: estroboscopico 0.5s infinite;
+}
+
+#strobe_color1 {
+  animation: estroboscopico2 0.8s infinite;
+}
+
+#strobe_color3 {
+  animation: estroboscopico1 0.8s infinite;
+  animation-delay: 3s;
 }
 
