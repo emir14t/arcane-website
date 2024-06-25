@@ -9,4 +9,21 @@
       <li><a href="#contact">Contact</a></li>
     </ul>
   </nav>
+  <div class="hamburger-menu">
+    <input type="checkbox" id="menu-toggle" [(ngModel)]="isMenuOpen">
+    <label for="menu-toggle" class="menu__icon">
+      <span class="trait"></span>
+      <span class="trait"></span>
+      <span class="trait"></span>
+    </label>
+    <div class="options">
+      <ul>
+        <li><a href="#home" (click)="closeMenu()">Home</a></li>
+        <li><a href="#about" (click)="closeMenu()">About</a></li>
+        <li><a href="#services" (click)="closeMenu()">Technology</a></li>
+        <li><a href="#solutions" (click)="closeMenu()">Solutions</a></li>
+        <li><a href="#contact" (click)="closeMenu()">Contact</a></li>
+      </ul>
+    </div>
+  </div>
 </div>

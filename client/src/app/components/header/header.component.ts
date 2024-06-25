@@ -1,5 +1,4 @@
 import { Component } from '@angular/core';
-import { Router } from '@angular/router';
 
 @Component({
   selector: 'app-header',
@@ -8,18 +7,11 @@ import { Router } from '@angular/router';
 })
 export class HeaderComponent {
 
-  constructor(private router: Router) { }
+  isMenuOpen: boolean = false;
 
-  redirectToAbout(): void {
-    this.router.navigate(['/about']);
+  constructor() { }
+
+  closeMenu(): void {
+    this.isMenuOpen = false;
   }
-
-  redirectToSolutions(): void {
-    this.router.navigate(['/solutions'])
-  }
-
-  redirectToContact(): void {
-    this.router.navigate(['/solutions'])
-  }
-
 }

@@ -1,5 +1,7 @@
 import { NgModule } from '@angular/core';
 import { BrowserModule } from '@angular/platform-browser';
+import { FormsModule } from '@angular/forms'; // Import FormsModule
+
 
 import { AppRoutingModule } from './modules/app-routing.module';
 import { AppComponent } from './pages/app/app.component';
@@ -22,7 +24,8 @@ import { ContactPageComponent } from './pages/contact-page/content-page/contact-
   ],
   imports: [
     BrowserModule,
-    AppRoutingModule
+    AppRoutingModule,
+    FormsModule
   ],
   providers: [],
   bootstrap: [AppComponent]
