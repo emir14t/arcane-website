@@ -7,4 +7,11 @@ import { Component } from '@angular/core';
 })
 export class HeaderComponent {
 
+  isMenuOpen: boolean = false;
+
+  constructor() { }
+
+  closeMenu(): void {
+    this.isMenuOpen = false;
+  }
 }
