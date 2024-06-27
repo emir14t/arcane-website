@@ -1,77 +1,75 @@
-footer {
-  display: flex;
-  flex-direction: column-reverse;
-  justify-content: center;
-  align-items: baseline;
-  width: 100%;
-}
+@import '../../../styles';
 
 .container {
-  width: 100%;
-  background-color: #333;
-  color: #d561ff;
-  padding: 10pt;
   display: flex;
   flex-direction: column;
 }
 
-.footer-sections {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  margin-bottom: 1.5rem;
+.footer-sections{
+  background-color: $primary-color;
+  opacity: 0.9;
+  border-top: 1px solid $black-color;
+  display: inline-flex;
+  justify-content:center;
+  padding: 40px;
+  color: $white-color;
+
+  // marging for text
+  h2{
+    margin-bottom: 15px;
+  }
+
+  p{
+    margin-bottom: 10px;
+  }
 }
 
-.footer-sections > div {
-  flex: 1;
-  min-width: 200px;
-  margin: 10px;
+// .languages-section{
+//   margin-bottom: 10px;
+// }
+
+.res-section {
+  ul {
+    list-style-type: none;
+    a {
+      color: $white-color;
+      text-decoration: none;
+      &:hover {
+        color: $black-color; 
+      }
+    }
+  }
 }
 
-.footer-about p, .footer-contact p {
-  margin-bottom: 0.5rem;
-}
-
-.footer-nav ul {
-  list-style: none;
-}
-
-.footer-nav ul li {
-  margin-bottom: 0.5rem;
-}
-
-.footer-nav ul li a {
-  color: #d561ff;
-  text-decoration: none;
-  transition: color 0.3s ease;
-}
-
-.footer-nav ul li a:hover {
-  color: #fff;
-}
-
-.footer-social ul {
-  list-style: none;
-}
-
-.footer-social a {
-  color: rgb(184, 98, 255);
-  font-size: 1.2rem;
-  margin-right: 10px;
-  transition: color 0.3s ease;
-}
-
-.footer-social a:hover {
-  color: #fff;
-}
-
+// bottom section
 .footer-bottom {
-  text-align: center;
-  border-top: 1px solid #444;
-  padding-top: 1rem;
-}
+  background-color: $white-color;
+  color: $primary-color;
+  display: flex;
+  flex-direction: row;  
+  padding: 20px;
+  font-family: $secondary-font;
+  font-size: small;
+  border-top: 1px solid $black-color;
+  justify-content: center;
 
-.footer-bottom p {
-  margin: 0;
-  font-size: 0.9rem;
+  .footer-nav {
+    a {
+      color: $primary-color;
+      text-decoration: none;
+      margin: 0 5px;
+
+      &:hover {
+        color: $secondary-color;
+      }
+    }
+
+    a::after {
+      content: " |";
+    }
+  }
+
+  p {
+    margin: 0;
+  }
 }
