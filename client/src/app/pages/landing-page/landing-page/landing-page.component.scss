@@ -7,75 +7,83 @@
   .hero-section {
     padding: 50px 20px;
     display: flex;
-    justify-content: center;
     align-items: center;
 
     .hero-content {
       display: flex;
-      justify-content: space-between;
-      align-items: center;
+      justify-content: space-evenly;
       width: 100%;
+      padding: 20px;
+      box-sizing: border-box;
 
       .logo-and-text {
         display: flex;
         flex-direction: column;
-        align-items: center;
+        max-width: 50%;
 
-        h1 {
-          font-size: 1.5rem;
-          margin-bottom: 10px;
-          color: $secondary-color;
+        h2 {
+          font-size: 4rem;
+          margin-bottom: 50px;
+          color: $black-color;
           font-family: $primary-font;
+          text-align: center;
         }
 
-        p {
-          font-size: 1rem;
+        h3 {
+          font-size: 1.5rem;
+          margin-bottom: 30px;
+          color: $primary-color;
           font-family: $secondary-font;
+          text-align: left;
+          opacity: 0%;
+          animation: fadeInAnimation 2s ease forwards; 
         }
 
-        .logo {
-          // width: 100%;
-          max-width: 750px;
+        button {
+          width: 12em;
+          height: 3em;
+          border-radius: 30px;
+          font-size: 25px;
+          font-weight: 600;
+          opacity: 0%;
+          animation: fadeInAnimation 2s ease forwards; 
         }
       }
     }
   }
 
-  .mission-section {
-    padding: 50px 20px;
+  .hero-animation-container{
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
     text-align: center;
 
-    h2 {
-      font-size: 2.5rem;
-      margin-bottom: 30px;
+    h1 {
+      z-index: 10;
+      font-size: 6em;
+      color: $primary-color;
+
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      margin: 0;
+      opacity: 0%;
+      transition: opacity 0.8s ease;
     }
 
-    .mission-cards {
-      display: flex;
-      justify-content: space-around;
-      flex-wrap: wrap;
-
-      .card {
-        padding: 20px;
-        margin: 10px;
-        border-radius: 10px;
-        border-color: $secondary-color;
-        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-        flex: 1;
-        max-width: 300px;
-        text-align: left;
-
-        h3 {
-          font-size: 1.5rem;
-          margin-bottom: 10px;
-        }
-
-        p {
-          font-size: 1rem;
-          line-height: 1.5;
-        }
+    &:hover {
+      h1 {
+        opacity: 1;
       }
     }
+  
+  }
+
+  .mission-section{
+    
   }
 
   .about-us-section {
@@ -96,108 +104,77 @@
   }
 }
 
-
-// server css animation
-.container_SevMini {
-  border-radius: 10px;
+// crypto logo section
+.svg-frame {
+  height: 500px;
+  width: 500px;
+  position: relative;
+  transform-style: preserve-3d;
   display: flex;
   justify-content: center;
   align-items: center;
-  flex-direction: column;
+  transform-origin: center;
+  // border: var(--sec-color, $primary-color) 0.1em solid;
+  // border-radius: 11px;
 }
 
-.Ghost {
-  transform: translate(0px, -25px);
-  z-index: -1;
-  animation: opacidad 4s infinite ease-in-out;
+.svg-frame svg {
+  position: absolute;
+  transition: .5s;
+  z-index: calc(1 - (0.2 * var(--j)));
+  fill: none;
+  margin: 0;
+  padding: 0;
 }
 
-@keyframes opacidad {
-  0% {
-    opacity: 1;
-    scale: 1;
-  }
+.svg-frame:hover svg {
+  transform: rotate(-80deg) skew(30deg) translateX(calc(45px * var(--i))) translateY(calc(-35px * var(--i)));
+}
 
-  50% {
-    opacity: 0.5;
-    scale: 0.9;
-  }
+.svg-frame svg #center {
+  transition: .5s;
+  transform-origin: center;
+}
 
-  100% {
-    opacity: 1;
-    scale: 1;
+.svg-frame:hover svg #center {
+  transform: rotate(-30deg) translateX(45px) translateY(-3px);
+}
+
+#out2 {
+  animation: rotate16 7s ease-in-out infinite alternate;
+  transform-origin: center;
+}
+
+#out3 {
+  animation: rotate16 3s ease-in-out infinite alternate;
+  transform-origin: center;
+  stroke: $secondary-color;
+}
+
+#inner3,
+#inner1 {
+  animation: rotate16 4s ease-in-out infinite alternate;
+  transform-origin: center;
+}
+
+#center1 {
+  fill: $secondary-color;
+  animation: rotate16 2s ease-in-out infinite alternate;
+  transform-origin: center;
+}
+
+// animation section
+@keyframes rotate16 {
+  to {
+    transform: rotate(360deg);
   }
 }
 
-@keyframes estroboscopico {
-  0% {
-    opacity: 1;
-  }
-
-  50% {
+@keyframes fadeInAnimation {
+  from {
     opacity: 0;
   }
-
-  51% {
-    opacity: 1;
-  }
-
-  100% {
+  to {
     opacity: 1;
   }
 }
-
-@keyframes rebote {
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-
-  50% {
-    transform: translateY(-10px);
-  }
-}
-
-@keyframes estroboscopico1 {
-  0%,
-  50%,
-  100% {
-    fill: rgb(255, 95, 74);
-  }
-
-  25%,
-  75% {
-    fill: rgb(16, 53, 115);
-  }
-}
-
-@keyframes estroboscopico2 {
-  0%,
-  50%,
-  100% {
-    fill: #17e300;
-  }
-
-  25%,
-  75% {
-    fill: #17e300b4;
-  }
-}
-
-.SevMini {
-  animation: rebote 4s infinite ease-in-out;
-}
-
-#strobe_led1 {
-  animation: estroboscopico 0.5s infinite;
-}
-
-#strobe_color1 {
-  animation: estroboscopico2 0.8s infinite;
-}
-
-#strobe_color3 {
-  animation: estroboscopico1 0.8s infinite;
-  animation-delay: 3s;
-}
-
