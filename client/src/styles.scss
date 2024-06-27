@@ -13,3 +13,20 @@ $white-color: #F4F6FC;
 
 $primary-font: 'Montserrat', serif;
 $secondary-font: 'Montserrat', sans-serif;
+
+button {
+    background-color: var(--first-color, $white-color);
+    color: var(--sec-color, $primary-color);
+    width: 8.5em;
+    height: 2.9em;
+    border: var(--sec-color, $primary-color) 0.1em solid;
+    border-radius: 11px;
+    text-align: center;
+    transition: all 0.3s ease;
+}
+  
+button:hover {
+    background-color: var(--sec-color, $primary-color);
+    color: var(--first-color, $white-color);
+    cursor: pointer;
+}
