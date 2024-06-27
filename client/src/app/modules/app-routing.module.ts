@@ -4,13 +4,15 @@ import { AboutPageComponent } from '../pages/about-page/about-page/about-page.co
 import { ContactPageComponent } from '../pages/contact-page/content-page/contact-page.component';
 import { LandingPageComponent } from '../pages/landing-page/landing-page/landing-page.component';
 import { SolutionsPageComponent } from '../pages/solutions-page/solutions-page/solutions-page.component';
+import { TechPageComponent } from '../pages/tech-page/tech-page/tech-page.component';
 
 const routes: Routes = [
   { path: '', redirectTo: '/home', pathMatch: 'full' },
   { path: 'home', component: LandingPageComponent },
   { path: 'about', component: AboutPageComponent},
   { path: 'solutions', component: SolutionsPageComponent },
-  { path: 'contact', component: ContactPageComponent }
+  { path: 'contact', component: ContactPageComponent },
+  { path: 'tech', component: TechPageComponent },
 ];
 
 @NgModule({
