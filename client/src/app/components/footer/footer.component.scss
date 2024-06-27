@@ -25,6 +25,12 @@
   }
 }
 
+.logo svg{
+  fill: $white-color;
+  width: 400px;
+  height: auto;
+}
+
 .res-section {
   ul {
     list-style-type: decimal;
