@@ -1,22 +1,33 @@
 import { NgModule } from '@angular/core';
 import { BrowserModule } from '@angular/platform-browser';
+import { FormsModule } from '@angular/forms'; // Import FormsModule
+
 
 import { AppRoutingModule } from './modules/app-routing.module';
 import { AppComponent } from './pages/app/app.component';
 import { LandingPageComponent } from './pages/landing-page/landing-page/landing-page.component';
 import { HeaderComponent } from './components/header/header.component';
 import { FooterComponent } from './components/footer/footer.component';
+import { AboutPageComponent } from './pages/about-page/about-page/about-page.component';
+import { SolutionsPageComponent } from './pages/solutions-page/solutions-page/solutions-page.component';
+import { ContactPageComponent } from './pages/contact-page/content-page/contact-page.component';
+import { TechPageComponent } from './pages/tech-page/tech-page/tech-page.component';
 
 @NgModule({
   declarations: [
     AppComponent,
     LandingPageComponent,
     HeaderComponent,
-    FooterComponent
+    FooterComponent,
+    AboutPageComponent,
+    SolutionsPageComponent,
+    ContactPageComponent,
+    TechPageComponent
   ],
   imports: [
     BrowserModule,
-    AppRoutingModule
+    AppRoutingModule,
+    FormsModule
   ],
   providers: [],
   bootstrap: [AppComponent]
