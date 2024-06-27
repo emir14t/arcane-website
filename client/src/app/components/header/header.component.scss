@@ -1,12 +1,14 @@
 @import '../../../styles';
 
 .container {
+  position: fixed;
   display: flex;
   align-items: center;
   background-color: $white-color;
   justify-content: space-between;
   width: 100%;
   border-bottom: 2px solid $black-color;
+  z-index: 20;
 }
 
 .logo {
