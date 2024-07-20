@@ -22,11 +22,13 @@ class Node {
   }
 
   search_down(userID:number):boolean{
+    //Base case
     if (this.children.length === 0){
       if (userID === this.userID) {return true;}
       return false;
     }
-    
+
+    //Iterate over the thresholds to find where the data is
     for (let index in this.thresholds){
       let threshold:number = this.thresholds[index];
       if (userID < threshold){
@@ -40,6 +42,12 @@ class Node {
   }
 
   search_up(userID:number):boolean{
+    //Base case
+    if (this.parent === undefined){
+      return this.search_down(userID);
+    }
+
+    //Iterate over the thresholds to find where the data could be
     for (let index in this.thresholds){
       let threshold:number = this.thresholds[index];
       if (userID < threshold){
@@ -54,5 +62,7 @@ class Node {
     }
     return this.parent.search_up(userID);
   }
+
+  
 }
 
