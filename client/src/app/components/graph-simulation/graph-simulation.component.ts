@@ -16,6 +16,8 @@ class Node {
   private thresholds:Array<number> = [];
   private maxDegree:number = -1;
   constructor(parent:Node, userID:number, maxDegree:number){
+    // Assuming that userID id is valid
+    // Assuming that maxDegree is >= 2
     this.userID = userID;
     this.parent = parent;
     this.maxDegree = maxDegree
@@ -63,6 +65,16 @@ class Node {
     return this.parent.search_up(userID);
   }
 
-  
+  insert_child_down(userID:number):void{
+
+  }
+
+  insert_child_up(userID:number):void{
+    
+  }
+
+  split_node():void{
+
+  }
 }
 
