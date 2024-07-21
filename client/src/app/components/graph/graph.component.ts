@@ -1,5 +1,8 @@
 import { Component, OnInit } from '@angular/core';
-import { Chart, ChartConfiguration, ChartData, ChartOptions } from 'chart.js/auto';
+import { Chart, registerables } from 'chart.js';
+import { EdgeLine, GraphController } from 'chartjs-chart-graph';
+
+Chart.register(...registerables, GraphController, EdgeLine);
 
 @Component({
   selector: 'app-graph',
@@ -8,54 +11,32 @@ import { Chart, ChartConfiguration, ChartData, ChartOptions } from 'chart.js/aut
 })
 
 export class GraphComponent implements OnInit {
-  chart: any;
-
-  constructor(){}
+  constructor() { }
 
   ngOnInit(): void {
-    this.createTreeChart();
-  }
+    this.createGraphChart();
+  } 
 
-  createTreeChart(): void {
+  createGraphChart(): void {
     const ctx = document.getElementById('treeChart') as HTMLCanvasElement;
-    const treeData: ChartData<'line'> = {
-      labels: ['n', 'm1', 'm2', 'm3'],
-      datasets: [
-        {
-          label: 'Tree Data',
-          data: [
-            { x: 0, y: 0 },  // n node
-            { x: 1, y: 1 },  // m1 node
-            { x: 1, y: -1 }, // m2 node
-            { x: 2, y: 0 }   // m3 node
-          ],
-          borderColor: 'rgba(75, 192, 192, 1)',
-          backgroundColor: 'rgba(75, 192, 192, 0.2)',
-          borderWidth: 1,
-          showLine: true,
-          fill: false,
-          pointRadius: 5
-        }
-      ]
-    };
-
-    const treeOptions: ChartOptions<'line'> = {
-      responsive: true,
-      scales: {
-        x: {
-          type: 'linear',
-          position: 'bottom'
-        },
-        y: {
-          type: 'linear'
-        }
-      }
-    };
 
     new Chart(ctx, {
-      type: 'line',
-      data: treeData,
-      options: treeOptions
-    } as ChartConfiguration);
+      type: 'graph',
+      data: {
+        labels: ['A', 'B', 'C'], // node labels
+        datasets: [{
+          data: [ // nodes as objects
+            { x: 1, y: 2 }, // x, y will be set by the force directed graph and can be omitted
+            { x: 3, y: 1 },
+            { x: 5, y: 3 }
+          ],
+          edges: [ // edge list where source/target refers to the node index
+            { source: 0, target: 1},
+            { source: 0, target: 2}
+          ]
+        }]
+      },
+    });
   }
+
 }
