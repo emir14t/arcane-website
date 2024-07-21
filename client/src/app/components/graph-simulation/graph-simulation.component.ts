@@ -95,12 +95,32 @@ class Node {
     return this.children[this.children.length-1].insert_child_down(user)
   }
 
-  add_child_to_node(user:Node){
+  insert_child_up(user:Node):void{
+    //Base case
+    if (this.parent === undefined){
+      return this.insert_child_down(user);
+    }
 
+    //Iterate over the thresholds to find where the data could be
+    let thresholdVals = this.thresholds.keys();
+    for (let index : number = 0; index < this.thresholds.size; index ++){
+      let threshold:Key = thresholdVals.next().value;
+
+      if (user.userID < threshold){
+        if (index === 0){
+          return this.parent.insert_child_up(user);
+        }
+        return this.children[index].insert_child_down(user);
+      }
+      else if (user.userID === threshold){
+        throw new Error("Cannot add same user twice to the tree");
+      }
+    }
+    return this.parent.insert_child_up(user);
   }
 
-  insert_child_up(userID:number):void{
-
+  add_child_to_node(user:Node){
+    
   }
 
   split_node():void{
