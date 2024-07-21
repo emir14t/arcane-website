@@ -26,9 +26,12 @@ class Node {
     this.parent = parent;
     this.maxDegree = maxDegree;
   }
+
+
   parent_changed(newParent:Node){
 
   }
+
   search_down(userID:number):Nullable<Data>{
     //Base case (leaf)
     if (this.children.length === 0){
@@ -241,6 +244,31 @@ class Node {
       if (this.thresholds[i] >= this.thresholds[i+1]){
         throw new Error("Threshold orderings are wrong");
       }
+    }
+  }
+
+  validate_up():void{
+    if (parent !== undefined){
+      let p:Node = this.parent as Node
+      return p.validate_up()
+    }
+
+    this.validate_down();
+  }
+  
+  validate_down():void{
+    this.validate_self();
+    for (let child of this.children){
+      if (child.parent === undefined){
+        throw new Error("Root's children's parent is unitialized");
+      }
+
+      let cp:Node = child.parent as Node;
+      if (cp !== this){
+        throw new Error("Root's children are not correctly representing the root as parent");
+      }
+
+      child.validate_down();
     }
   }
 }
