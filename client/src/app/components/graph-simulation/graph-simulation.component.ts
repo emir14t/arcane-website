@@ -27,15 +27,17 @@ class Node {
   private maxDegree:number = -1;
 
   constructor(parent:Nullable<Node>, maxDegree:number){
-    // Assuming that maxDegree is >= 2
+    //Assuming that maxDegree is >= 2
     this.parent = parent;
     this.maxDegree = maxDegree;
   }
 
 
-  delete_wrapper(userID:number):void{
+
+  balance():void{
 
   }
+  
 
   search_down(userID:number):Nullable<Data>{
     //Base case (leaf)
@@ -240,7 +242,7 @@ class Node {
     if (this.children.length === 0){
       for (let index:number = 0; index < this.thresholds.length; index++){
         if (userID === this.thresholds[index]){
-          this.delete_wrapper(userID);
+          this.delete_wrapper(userID, index);
           return true;
         }
       }
@@ -254,7 +256,7 @@ class Node {
         return this.children[index].delete_down(userID);
       }
       else if (userID === threshold){
-        this.delete_wrapper(userID);
+        this.delete_wrapper(userID, index);
         return true;
       }
     }
@@ -278,11 +280,52 @@ class Node {
         return this.children[index].delete_down(userID);
       }
       else if (userID === threshold){
-        this.delete_wrapper(userID);
+        this.delete_wrapper(userID, index);
         return true;
       }
     }
     return this.parent.delete_up(userID);
+  }
+
+  delete_wrapper(userID:number, index:number):void{
+    //Assuming that userID is present in this.children
+    //Assuming that children[index] == userID
+    //Case 1: Leaf
+    if (this.children.length === 0){
+      this.datas.splice(index, 1);
+      this.thresholds.splice(index, 1);
+      return this.balance();
+    }
+
+    let leftChild:Node = this.children[index];
+    let rightChild:Node = this.children[index + 1];
+
+    //Case 2: No leaf
+    //Case 2.a: Left child has more entries
+    if (leftChild.thresholds.length > rightChild.thresholds.length){
+      let indexToRem:number = leftChild.thresholds.length - 1;
+      let thresholdToRem:Key = leftChild.thresholds[indexToRem];
+      let dataToRem:Data = leftChild.datas[indexToRem];
+
+      this.children[index].delete_wrapper(thresholdToRem, indexToRem);
+
+      this.thresholds[index] = thresholdToRem;
+      this.datas[index] = dataToRem;
+      return this.balance();
+    }
+
+    //Case 2.b: Right child has more (or equal) entries
+    else{
+      let indexToRem:number = rightChild.thresholds.length - 1;
+      let thresholdToRem:Key = rightChild.thresholds[indexToRem];
+      let dataToRem:Data = rightChild.datas[indexToRem];
+
+      this.children[index + 1].delete_wrapper(thresholdToRem, indexToRem);
+
+      this.thresholds[index] = thresholdToRem;
+      this.datas[index] = dataToRem;
+      return this.balance();
+    }
   }
 
   validate_self():void{
