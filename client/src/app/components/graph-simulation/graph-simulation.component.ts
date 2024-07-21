@@ -15,6 +15,11 @@ type Nullable<K> = undefined | K;
 
 
 class Node {
+  //Signals
+  parent_changed(newParent:Node){
+
+  }
+
   private parent:Nullable<Node>;
   private children:Array<Node> = [];
   private thresholds:Array<Key> = new Array<Key>();
@@ -28,7 +33,7 @@ class Node {
   }
 
 
-  parent_changed(newParent:Node){
+  delete_wrapper(userID:number):void{
 
   }
 
@@ -230,6 +235,56 @@ class Node {
     }
   }
 
+  delete_down(userID:number):boolean{
+    //Base case (leaf)
+    if (this.children.length === 0){
+      for (let index:number = 0; index < this.thresholds.length; index++){
+        if (userID === this.thresholds[index]){
+          this.delete_wrapper(userID);
+          return true;
+        }
+      }
+      return false;
+    }
+
+    //Iterate over the thresholds to find where the data is
+    for (let index : number = 0; index < this.thresholds.length; index ++){
+      let threshold:Key = this.thresholds[index];
+      if (userID < threshold){
+        return this.children[index].delete_down(userID);
+      }
+      else if (userID === threshold){
+        this.delete_wrapper(userID);
+        return true;
+      }
+    }
+    return this.children[this.children.length-1].delete_down(userID)
+  }
+
+  delete_up(userID:number):boolean{
+    //Base case (root)
+    if (this.parent === undefined){
+      return this.delete_down(userID);
+    }
+
+    //Iterate over the thresholds to find where the data could be
+    for (let index : number = 0; index < this.thresholds.length; index ++){
+      let threshold:Key = this.thresholds[index];
+
+      if (userID < threshold){
+        if (index === 0){
+          return this.parent.delete_up(userID);
+        }
+        return this.children[index].delete_down(userID);
+      }
+      else if (userID === threshold){
+        this.delete_wrapper(userID);
+        return true;
+      }
+    }
+    return this.parent.delete_up(userID);
+  }
+
   validate_self():void{
     //Validate lengths
     if (this.datas.length !== this.thresholds.length){
@@ -255,7 +310,7 @@ class Node {
 
     this.validate_down();
   }
-  
+
   validate_down():void{
     this.validate_self();
     for (let child of this.children){
