@@ -1,34 +1,32 @@
-import { Component } from '@angular/core';
-import { InjectSetupWrapper } from '@angular/core/testing';
-import { merge } from 'rxjs';
+// import { Component } from '@angular/core';
+// import { InjectSetupWrapper } from '@angular/core/testing';
+// import { merge } from 'rxjs';
 
-@Component({
-  selector: 'app-graph-simulation',
-  templateUrl: './graph-simulation.component.html',
-  styleUrls: ['./graph-simulation.component.scss']
-})
-export class GraphSimulationComponent {
+// @Component({
+//   selector: 'app-graph-simulation',
+//   templateUrl: './graph-simulation.component.html',
+//   styleUrls: ['./graph-simulation.component.scss']
+// })
+// export class GraphSimulationComponent {
 
-}
+// }
 type Key = number;
 type Data = string;
 type Nullable<K> = undefined | K;
 
-
-
-class Node {
+class BNode {
   //Signals
-  parent_changed(newParent:Node){
+  parent_changed(newParent:BNode){
 
   }
 
-  private parent:Nullable<Node>;
-  private children:Array<Node> = [];
+  private parent:Nullable<BNode>;
+  private children:Array<BNode> = [];
   private thresholds:Array<Key> = new Array<Key>();
   private datas:Array<Data> = new Array<Data>();
   private maxDegree:number = -1;
 
-  constructor(parent:Nullable<Node>, maxDegree:number){
+  constructor(parent:Nullable<BNode>, maxDegree:number){
     //Assuming that maxDegree is >= 2
     this.parent = parent;
     this.maxDegree = maxDegree;
@@ -36,75 +34,14 @@ class Node {
 
 
 
-  balance(changedNode:Node):void{
-    let curNbNodes : number = this.thresholds.length;
-    //If the number of nodes here are smaller than half the max amount, then we have to compress
-    if (curNbNodes <= this.maxDegree / 2){
-
-    }
-  }
-
-  mergeNodes(node1:Node, node2:Node){
-    //Assuming that both nodes provided are from the same level
-    //Base Case: leaves
-    if (node1.children.length == 0){
-      node1.thresholds = node1.thresholds.concat(node2.thresholds);
-      node1.datas = node1.datas.concat(node2.datas);
-      return true;
-    }
-
-    
-    let leftChild = node1.children[node1.children.length - 1];
-    let rightChild = node2.children[0];
-
-    //Case 1: We have to keep merging
-    if (leftChild.thresholds.length + rightChild.thresholds.length < this.maxDegree){
-      node1.thresholds = node1.thresholds.concat(node2.thresholds);
-      node1.datas = node1.datas.concat(node2.datas);
-      node2.children.shift();
-      node1.children = node1.children.concat(node2.children);
-      this.mergeNodes(leftChild, rightChild)
-      return;
-    }
-
-    //Case 2: We can just rotate
-    else{
-      //Case 2.a: Left child has more entries
-      if (leftChild.thresholds.length > rightChild.thresholds.length){
-        let indexToPromote:number = leftChild.thresholds.length - 1;
-        let keyToPromote:Key = leftChild.thresholds[indexToPromote];
-        let dataToPromote:Data = leftChild.datas[indexToPromote];
-
-        leftChild.delete_wrapper(keyToPromote, indexToPromote);
-
-        node1.thresholds.push(keyToPromote);
-        node1.datas.push(dataToPromote);
-
-        node1.thresholds = node1.thresholds.concat(node2.thresholds);
-        node1.datas = node1.datas.concat(node2.datas);
-        node1.children = node1.children.concat(node2.children);
-      }
-  
-      //Case 2.b: Right child has more (or equal) entries
-      else{
-        let indexToPromote:number = 0;
-        let keyToPromote:Key = rightChild.thresholds[indexToPromote];
-        let dataToPromote:Data = rightChild.datas[indexToPromote];
-
-        rightChild.delete_wrapper(keyToPromote, indexToPromote);
-
-        node1.thresholds.push(keyToPromote);
-        node1.datas.push(dataToPromote);
-
-        node1.thresholds = node1.thresholds.concat(node2.thresholds);
-        node1.datas = node1.datas.concat(node2.datas);
-        node1.children = node1.children.concat(node2.children);
-      }
-      return;
+  balance(changedBNode:BNode):void{
+    let curNbBNodes : number = this.thresholds.length;
+    //If the number of BNodes here are smaller than half the max amount, then we have to compress
+    if (curNbBNodes <= this.maxDegree / 2){ 
+      
     }
   }
   
-
   search_down(userID:Key):Nullable<Data>{
     //Base case (leaf)
     if (this.children.length === 0){
@@ -129,7 +66,7 @@ class Node {
 
   search_up(userID:Key):Nullable<Data>{
     //Base case (root)
-    if (this.parent === undefined){
+    if (typeof this.parent === "undefined"){
       return this.search_down(userID);
     }
 
@@ -153,7 +90,7 @@ class Node {
   insert_child_down(userID:Key, data:Data):void{
     //Base case (leaf)
     if (this.children.length === 0){
-      return this.add_data_to_node(userID, data);
+      return this.add_data_to_BNode(userID, data);
     }
 
     //Iterate over the thresholds to find where the data is
@@ -171,7 +108,7 @@ class Node {
 
   insert_child_up(userID:Key, data:Data):void{
     //Base case (root)
-    if (this.parent === undefined){
+    if (typeof this.parent === "undefined"){
       return this.insert_child_down(userID, data);
     }
 
@@ -192,7 +129,7 @@ class Node {
     return this.parent.insert_child_up(userID, data);
   }
 
-  add_data_to_node(userID:Key, data:Data):void{
+  add_data_to_BNode(userID:Key, data:Data):void{
     //Assuming that the userID doesn't exist in the array
     //Add to arrays
     if (this.thresholds.length == 0){
@@ -224,75 +161,75 @@ class Node {
   }
 
   split_node_wrapper():void{
-    //This handles the edge cases before asking parent to split this node
-    if (parent === undefined){
-      let tmpParent:Node = new Node(undefined, this.maxDegree);
+    //This handles the edge cases before asking parent to split this BNode
+    if (typeof parent === "undefined"){
+      let tmpParent:BNode = new BNode(undefined, this.maxDegree);
       tmpParent.children.push(this);
       this.parent = tmpParent;
       this.parent_changed(tmpParent)
       return tmpParent.split_node(this);
     }
 
-    let p:Node = this.parent as Node;
+    let p:BNode = this.parent as BNode;
     return p.split_node(this);
   }
 
-  split_node(childNode:Node):void{
-    //Assuming that childNode.parent === this
-    let newNode:Node = new Node(this, this.maxDegree);
+  split_node(childBNode:BNode):void{
+    //Assuming that childBNode.parent === this
+    let newBNode:BNode = new BNode(this, this.maxDegree);
     let sizePartition1:number = Math.floor(this.datas.length/2);
-    let keyToPromote:Key = childNode.thresholds[sizePartition1];
-    let dataToPromote:Data = childNode.datas[sizePartition1];
+    let keyToPromote:Key = childBNode.thresholds[sizePartition1];
+    let dataToPromote:Data = childBNode.datas[sizePartition1];
 
-    //Spliting the node into three, the original childNode pointer, the new newNode pointer and the new promoted data
-    newNode.datas = childNode.datas.slice(0, sizePartition1);
-    newNode.thresholds = childNode.thresholds.slice(0, sizePartition1);
-    newNode.children = childNode.children.slice(0, sizePartition1 + 1);
-    for (let child of newNode.children){
-      child.parent = newNode;
+    //Spliting the BNode into three, the original childBNode pointer, the new newBNode pointer and the new promoted data
+    newBNode.datas = childBNode.datas.slice(0, sizePartition1);
+    newBNode.thresholds = childBNode.thresholds.slice(0, sizePartition1);
+    newBNode.children = childBNode.children.slice(0, sizePartition1 + 1);
+    for (let child of newBNode.children){
+      child.parent = newBNode;
     }
 
-    childNode.datas = childNode.datas.slice(sizePartition1 + 1);
-    childNode.thresholds = childNode.thresholds.slice(sizePartition1 + 1);
-    childNode.children = childNode.children.slice(sizePartition1 + 1);
+    childBNode.datas = childBNode.datas.slice(sizePartition1 + 1);
+    childBNode.thresholds = childBNode.thresholds.slice(sizePartition1 + 1);
+    childBNode.children = childBNode.children.slice(sizePartition1 + 1);
 
     //Add the information to the tree
     if (this.thresholds.length == 0){
       if (this.children.length != 1){
-        throw new Error("Current node has no children nor thresholds");
+        throw new Error("Current BNode has no children nor thresholds");
       }
-      if (this.children[0] !== childNode){
-        throw new Error("Inconsistencies when adding nodes (children doesn't represent child)");
+      if (this.children[0] !== childBNode){
+        throw new Error("Inconsistencies when adding BNodes (children doesn't represent child)");
       }
-      this.children.unshift(newNode);
+      this.children.unshift(newBNode);
       this.thresholds.unshift(keyToPromote);
       this.datas.unshift(dataToPromote);
     }
     else if (keyToPromote < this.thresholds[0]){
-      if (this.children[0] !== childNode){
-        throw new Error("Inconsistencies when adding nodes (children doesn't represent child)");
+      if (this.children[0] !== childBNode){
+        throw new Error("Inconsistencies when adding BNodes (children doesn't represent child)");
       }
-      this.children.unshift(newNode);
+      this.children.unshift(newBNode);
       this.thresholds.unshift(keyToPromote);
       this.datas.unshift(dataToPromote);
     }
     else if (keyToPromote > this.thresholds[this.thresholds.length - 1]){
-      this.children.splice(this.children.length - 1, 0, newNode);
+      this.children.splice(this.children.length - 1, 0, newBNode);
       this.thresholds.push(keyToPromote);
       this.datas.push(dataToPromote);
     }
     else if (keyToPromote === this.thresholds[this.thresholds.length - 1]){
-      throw new Error("Promoted node already exists in his parent's dataset");
+      throw new Error("Promoted BNode already exists in his parent's dataset");
     }
     else{
       for (let i:number = 0; i < this.thresholds.length - 1; i++){
         if (keyToPromote > this.thresholds[i] && keyToPromote < this.thresholds[i+1]){
-          this.children.splice(i+1, 0, newNode);
+          this.children.splice(i+1, 0, newBNode);
           this.thresholds.splice(i+1, 0, keyToPromote);
           this.datas.splice(i+1, 0, dataToPromote);
         }
         if (keyToPromote == this.thresholds[i]){
-          throw new Error("Promoted node already exists in his parent's dataset");
+          throw new Error("Promoted BNode already exists in his parent's dataset");
         }
       }
     }
@@ -331,7 +268,7 @@ class Node {
 
   delete_up(userID:Key):boolean{
     //Base case (root)
-    if (this.parent === undefined){
+    if (typeof this.parent === "undefined"){
       return this.delete_down(userID);
     }
 
@@ -361,17 +298,17 @@ class Node {
       this.datas.splice(index, 1);
       this.thresholds.splice(index, 1);
 
-      if (this.datas.length <= this.maxDegree / 2){
-        if (this.parent == undefined){
+      if (this.datas.length < this.maxDegree / 2){
+        if (typeof this.parent == "undefined"){
           return;
         }
-        (this.parent as Node).balance(this);
+        (this.parent as BNode).balance(this);
       }
       return;
     }
 
-    let leftChild:Node = this.children[index];
-    let rightChild:Node = this.children[index + 1];
+    let leftChild:BNode = this.children[index];
+    let rightChild:BNode = this.children[index + 1];
 
     //Case 2: No leaf
     //Case 2.a: Compression
@@ -380,13 +317,13 @@ class Node {
       this.datas.splice(index, 1);
       this.thresholds.splice(index, 1);
 
-      this.mergeNodes(leftChild, rightChild);
+      this.mergeBNodes(leftChild, rightChild);
 
-      if (this.datas.length <= this.maxDegree / 2){
-        if (this.parent == undefined){
+      if (this.datas.length < this.maxDegree / 2){
+        if (typeof this.parent == "undefined"){
           return;
         }
-        (this.parent as Node).balance(this);
+        (this.parent as BNode).balance(this);
       }
       return;
     }
@@ -403,11 +340,11 @@ class Node {
       this.thresholds[index] = thresholdToRem;
       this.datas[index] = dataToRem;
       
-      if (this.datas.length <= this.maxDegree / 2){
-        if (this.parent == undefined){
+      if (this.datas.length < this.maxDegree / 2){
+        if (typeof this.parent == "undefined"){
           return;
         }
-        (this.parent as Node).balance(this);
+        (this.parent as BNode).balance(this);
       }
       return;
     }
@@ -423,16 +360,75 @@ class Node {
       this.thresholds[index] = thresholdToRem;
       this.datas[index] = dataToRem;
       
-      if (this.datas.length <= this.maxDegree / 2){
-        if (this.parent == undefined){
+      if (this.datas.length < this.maxDegree / 2){
+        if (typeof this.parent == "undefined"){
           return;
         }
-        (this.parent as Node).balance(this);
+        (this.parent as BNode).balance(this);
       }
       return;
     }
   }
+  
+  mergeBNodes(BNode1:BNode, BNode2:BNode){
+    //Assuming that both BNodes provided are from the same level
+    //Base Case: leaves
+    if (BNode1.children.length == 0){
+      BNode1.thresholds = BNode1.thresholds.concat(BNode2.thresholds);
+      BNode1.datas = BNode1.datas.concat(BNode2.datas);
+      return true;
+    }
 
+    let leftChild = BNode1.children[BNode1.children.length - 1];
+    let rightChild = BNode2.children[0];
+
+    //Case 1: We have to keep merging
+    if (leftChild.thresholds.length + rightChild.thresholds.length < this.maxDegree){
+      BNode1.thresholds = BNode1.thresholds.concat(BNode2.thresholds);
+      BNode1.datas = BNode1.datas.concat(BNode2.datas);
+      BNode2.children.shift();
+      BNode1.children = BNode1.children.concat(BNode2.children);
+      this.mergeBNodes(leftChild, rightChild)
+      return;
+    }
+
+    //Case 2: We can just rotate
+    else{
+      //Case 2.a: Left child has more entries
+      if (leftChild.thresholds.length > rightChild.thresholds.length){
+        let indexToPromote:number = leftChild.thresholds.length - 1;
+        let keyToPromote:Key = leftChild.thresholds[indexToPromote];
+        let dataToPromote:Data = leftChild.datas[indexToPromote];
+
+        leftChild.delete_wrapper(keyToPromote, indexToPromote);
+
+        BNode1.thresholds.push(keyToPromote);
+        BNode1.datas.push(dataToPromote);
+
+        BNode1.thresholds = BNode1.thresholds.concat(BNode2.thresholds);
+        BNode1.datas = BNode1.datas.concat(BNode2.datas);
+        BNode1.children = BNode1.children.concat(BNode2.children);
+      }
+  
+      //Case 2.b: Right child has more (or equal) entries
+      else{
+        let indexToPromote:number = 0;
+        let keyToPromote:Key = rightChild.thresholds[indexToPromote];
+        let dataToPromote:Data = rightChild.datas[indexToPromote];
+
+        rightChild.delete_wrapper(keyToPromote, indexToPromote);
+
+        BNode1.thresholds.push(keyToPromote);
+        BNode1.datas.push(dataToPromote);
+
+        BNode1.thresholds = BNode1.thresholds.concat(BNode2.thresholds);
+        BNode1.datas = BNode1.datas.concat(BNode2.datas);
+        BNode1.children = BNode1.children.concat(BNode2.children);
+      }
+      return;
+    }
+  }
+  
   validate_self():void{
     //Validate lengths
     if (this.datas.length !== this.thresholds.length){
@@ -451,22 +447,21 @@ class Node {
   }
 
   validate_up():void{
-    if (parent !== undefined){
-      let p:Node = this.parent as Node
-      return p.validate_up()
+    if (typeof this.parent === "undefined"){
+      return this.validate_down();
     }
 
-    this.validate_down();
+    return (this.parent as BNode).validate_up()
   }
 
   validate_down():void{
     this.validate_self();
     for (let child of this.children){
-      if (child.parent === undefined){
+      if (typeof child.parent === "undefined"){
         throw new Error("Root's children's parent is unitialized");
       }
 
-      let cp:Node = child.parent as Node;
+      let cp:BNode = child.parent as BNode;
       if (cp !== this){
         throw new Error("Root's children are not correctly representing the root as parent");
       }
@@ -474,7 +469,39 @@ class Node {
       child.validate_down();
     }
   }
+
+  print_tree():void{
+    if(typeof this.parent != "undefined"){
+      return (this.parent as BNode).print_tree();
+    }
+
+    this.print_tree_down(0)
+  }
+
+  print_tree_down(cur_level:number):void{
+    if(cur_level === 0) {
+      console.log('// ' + this.thresholds);
+    } else if (cur_level === 1) {
+      console.log(`// |${'────'.repeat(cur_level)} ${this.thresholds}`);
+    } else {
+      console.log(`// |${'    '.repeat(cur_level - 1)} |──── ${ this.thresholds}`);
+    }
+    
+    for (let child of this.children){
+      child.print_tree_down(cur_level + 1);
+    }
+  }
 }
 
 
 
+
+let cur:BNode = new BNode(undefined, 5);
+
+for (let i = 0; i < 6; i++){
+  cur.insert_child_up(i,"hi");
+}
+
+
+cur.validate_up();
+cur.print_tree();
