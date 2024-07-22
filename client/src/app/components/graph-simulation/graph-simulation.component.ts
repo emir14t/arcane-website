@@ -448,8 +448,9 @@ class BNode {
   
   validate_self():void{
     //Validate lengths
-    if (this.datas.length !== this.thresholds.length)                                   {throw new Error("Datas and Threshold lengths are inconsistent");}
+    if (this.datas.length !== this.thresholds.length) {throw new Error("Datas and Threshold lengths are inconsistent");}
     if (this.children.length !== 0 && this.datas.length !== (this.children.length - 1)) {throw new Error("Children lengths are inconsistent");}
+    if (typeof this.parent !== "undefined" && this.datas.length < Math.floor(this.maxDegree / 2)) {throw new Error("Tree has nodes with less than the minimum amount of nodes ");}
 
     //Validate ordering
     for (let i:number = 0; i < this.thresholds.length - 1; i++){
@@ -550,3 +551,35 @@ function insertionTest003(){
   cur.validate_up();
 }
 
+function searchTest001(){
+  let cur:BNode = new BNode(undefined, 5);
+
+  for (let i = 0; i <= 100; i += 5){
+    cur.insert_child_up(i ,"hi");
+  }
+  for (let i = 1; i <= 100; i += 5){
+    cur.insert_child_up(i ,"hi");
+  }
+  for (let i = 2; i <= 100; i += 5){
+    cur.insert_child_up(i ,"hi");
+  }
+  for (let i = 3; i <= 100; i += 5){
+    cur.insert_child_up(i ,"hi");
+  }
+  for (let i = 4; i <= 100; i += 5){
+    cur.insert_child_up(i ,"hi");
+  }
+  
+  for (let i = 0; i <= 100; i ++){
+    if (cur.search_up(i) !== "hi"){
+      throw new Error("Problem with the search");
+    }
+  }
+  for (let i = 101; i <= 200; i++){
+    if (typeof cur.search_up(i) !== "undefined"){
+      throw new Error("Problem with the search");
+    }
+  }
+
+  console.log("Works");
+}
