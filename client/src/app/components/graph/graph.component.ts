@@ -1,6 +1,8 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, AfterViewInit, OnInit } from '@angular/core';
 import { Chart, registerables } from 'chart.js';
 import { EdgeLine, GraphController } from 'chartjs-chart-graph';
+import { Node } from 'src/app/interface/interface';
+import * as nodeData from 'src/app/sample-data/test-graph.json';
 
 Chart.register(...registerables, GraphController, EdgeLine);
 
@@ -10,33 +12,71 @@ Chart.register(...registerables, GraphController, EdgeLine);
   styleUrls: ['./graph.component.scss']
 })
 
-export class GraphComponent implements OnInit {
+export class GraphComponent implements OnInit, AfterViewInit{
+
+  nodes : Map<number, Node> = new Map<number, Node>();
+
   constructor() { }
 
-  ngOnInit(): void {
+  ngOnInit() : void {
+    this.loadSampleData();
+  }
+
+  ngAfterViewInit() : void {
     this.createGraphChart();
-  } 
+  }
 
   createGraphChart(): void {
-    const ctx = document.getElementById('treeChart') as HTMLCanvasElement;
-
-    new Chart(ctx, {
+    const dataset : { x : number, y : number }[] = Array.from(this.nodes.values()).map(node => ({ x: node.depth, y: node.breadth }));
+    new Chart('treeChart', {
       type: 'graph',
       data: {
-        labels: ['A', 'B', 'C'], // node labels
+        labels : Object.keys(this.nodes),
         datasets: [{
-          data: [ // nodes as objects
-            { x: 1, y: 2 }, // x, y will be set by the force directed graph and can be omitted
-            { x: 3, y: 1 },
-            { x: 5, y: 3 }
-          ],
-          edges: [ // edge list where source/target refers to the node index
-            { source: 0, target: 1},
-            { source: 0, target: 2}
-          ]
+          data: dataset,
+          edges : this.createEdges(),
         }]
       },
     });
   }
 
+  loadSampleData(): void {
+    const dataset = nodeData;
+    const data = dataset.dataset as Node[];
+    data.forEach((node: Node) => {
+      this.nodes.set(node.id, node);
+    });
+  }
+
+  createEdges(): { source: number, target: number }[] {
+
+    const edges : { source: number, target: number }[] = [];
+    const nodeArray = Array.from(this.nodes.values());
+    const keysArray : number[] = Array.from(this.nodes.keys());
+
+    // Iterate over each node
+    nodeArray.forEach((node) => {
+      const sourceIndex = keysArray.indexOf(node.id);
+
+      // Add edges for child nodes
+      node.childs.forEach(childId => {
+        if (this.nodes.get(childId)) {
+          edges.push({ source: sourceIndex, target: keysArray.indexOf(childId) });
+        }
+      });
+
+      // Add edges for neighbor nodes
+      node.neighbors.forEach(neighborId => {
+        if (this.nodes.get(neighborId)) {
+          edges.push({ source: sourceIndex, target: keysArray.indexOf(neighborId) });
+        }
+      });
+
+      // Add edge for parent node (if it exists)
+      if (node.parent !== null && this.nodes.get(node.parent)) {
+        edges.push({ source: sourceIndex, target: keysArray.indexOf(node.parent) });
+      }
+    });
+    return edges;
+  }
 }
