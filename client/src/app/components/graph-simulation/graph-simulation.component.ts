@@ -2,6 +2,7 @@
 // import { InjectSetupWrapper } from '@angular/core/testing';
 // import { merge } from 'rxjs';
 
+
 // @Component({
 //   selector: 'app-graph-simulation',
 //   templateUrl: './graph-simulation.component.html',
@@ -27,20 +28,16 @@ class BNode {
   private maxDegree:number = -1;
 
   constructor(parent:Nullable<BNode>, maxDegree:number){
-    //Assuming that maxDegree is >= 2
+    if (maxDegree < 2){
+      throw new Error("Unallowed initialization");
+    }
+
     this.parent = parent;
     this.maxDegree = maxDegree;
   }
 
 
 
-  balance(changedBNode:BNode):void{
-    let curNbBNodes : number = this.thresholds.length;
-    //If the number of BNodes here are smaller than half the max amount, then we have to compress
-    if (curNbBNodes <= this.maxDegree / 2){ 
-      
-    }
-  }
   
   search_down(userID:Key):Nullable<Data>{
     //Base case (leaf)
@@ -77,6 +74,9 @@ class BNode {
       if (userID < threshold){
         if (index === 0){
           return this.parent.search_up(userID);
+        }
+        if (this.children.length === 0){
+          return this.search_down(userID);
         }
         return this.children[index].search_down(userID);
       }
@@ -120,6 +120,9 @@ class BNode {
         if (index === 0){
           return this.parent.insert_child_up(userID, data);
         }
+        if (this.children.length === 0){
+          return this.add_data_to_BNode(userID, data);
+        }
         return this.children[index].insert_child_down(userID, data);
       }
       else if (userID === threshold){
@@ -162,22 +165,21 @@ class BNode {
 
   split_node_wrapper():void{
     //This handles the edge cases before asking parent to split this BNode
-    if (typeof parent === "undefined"){
+    if (typeof this.parent === "undefined"){
       let tmpParent:BNode = new BNode(undefined, this.maxDegree);
       tmpParent.children.push(this);
       this.parent = tmpParent;
-      this.parent_changed(tmpParent)
+      this.parent_changed(tmpParent);
       return tmpParent.split_node(this);
     }
 
-    let p:BNode = this.parent as BNode;
-    return p.split_node(this);
+    return (this.parent as BNode).split_node(this);
   }
 
   split_node(childBNode:BNode):void{
     //Assuming that childBNode.parent === this
     let newBNode:BNode = new BNode(this, this.maxDegree);
-    let sizePartition1:number = Math.floor(this.datas.length/2);
+    let sizePartition1:number = Math.floor(childBNode.thresholds.length/2);
     let keyToPromote:Key = childBNode.thresholds[sizePartition1];
     let dataToPromote:Data = childBNode.datas[sizePartition1];
 
@@ -194,6 +196,7 @@ class BNode {
     childBNode.children = childBNode.children.slice(sizePartition1 + 1);
 
     //Add the information to the tree
+    //Newly added parents
     if (this.thresholds.length == 0){
       if (this.children.length != 1){
         throw new Error("Current BNode has no children nor thresholds");
@@ -201,10 +204,12 @@ class BNode {
       if (this.children[0] !== childBNode){
         throw new Error("Inconsistencies when adding BNodes (children doesn't represent child)");
       }
+
       this.children.unshift(newBNode);
       this.thresholds.unshift(keyToPromote);
       this.datas.unshift(dataToPromote);
     }
+    //Finding the spot to add it
     else if (keyToPromote < this.thresholds[0]){
       if (this.children[0] !== childBNode){
         throw new Error("Inconsistencies when adding BNodes (children doesn't represent child)");
@@ -219,7 +224,7 @@ class BNode {
       this.datas.push(dataToPromote);
     }
     else if (keyToPromote === this.thresholds[this.thresholds.length - 1]){
-      throw new Error("Promoted BNode already exists in his parent's dataset");
+      throw new Error("Promoted BNode already exists in his parent's dataset. Node data:\'" + this.thresholds + "\', keyToPromote:" + keyToPromote);
     }
     else{
       for (let i:number = 0; i < this.thresholds.length - 1; i++){
@@ -227,9 +232,10 @@ class BNode {
           this.children.splice(i+1, 0, newBNode);
           this.thresholds.splice(i+1, 0, keyToPromote);
           this.datas.splice(i+1, 0, dataToPromote);
+          break;
         }
-        if (keyToPromote == this.thresholds[i]){
-          throw new Error("Promoted BNode already exists in his parent's dataset");
+        else if (keyToPromote == this.thresholds[i]){
+          throw new Error("Promoted BNode already exists in his parent's dataset. Node data:\'" + this.thresholds + "\', keyToPromote:" + keyToPromote);
         }
       }
     }
@@ -279,6 +285,9 @@ class BNode {
       if (userID < threshold){
         if (index === 0){
           return this.parent.delete_up(userID);
+        }
+        if (this.children.length === 0){
+          return false;
         }
         return this.children[index].delete_down(userID);
       }
@@ -429,27 +438,27 @@ class BNode {
     }
   }
   
+  balance(changedBNode:BNode):void{
+    let curNbBNodes : number = this.thresholds.length;
+    //If the number of BNodes here are smaller than half the max amount, then we have to compress
+    if (curNbBNodes <= this.maxDegree / 2){ 
+      
+    }
+  }
+  
   validate_self():void{
     //Validate lengths
-    if (this.datas.length !== this.thresholds.length){
-      throw new Error("Datas and Threshold lengths are inconsistent");
-    }
-    if (this.children.length !== 0 && this.datas.length !== (this.children.length - 1)){
-      throw new Error("Children lengths are inconsistent");
-    }
+    if (this.datas.length !== this.thresholds.length)                                   {throw new Error("Datas and Threshold lengths are inconsistent");}
+    if (this.children.length !== 0 && this.datas.length !== (this.children.length - 1)) {throw new Error("Children lengths are inconsistent");}
 
     //Validate ordering
     for (let i:number = 0; i < this.thresholds.length - 1; i++){
-      if (this.thresholds[i] >= this.thresholds[i+1]){
-        throw new Error("Threshold orderings are wrong");
-      }
+      if (this.thresholds[i] >= this.thresholds[i+1]){throw new Error("Threshold orderings are wrong");}
     }
   }
 
   validate_up():void{
-    if (typeof this.parent === "undefined"){
-      return this.validate_down();
-    }
+    if (typeof this.parent === "undefined"){return this.validate_down();}
 
     return (this.parent as BNode).validate_up()
   }
@@ -457,33 +466,34 @@ class BNode {
   validate_down():void{
     this.validate_self();
     for (let child of this.children){
-      if (typeof child.parent === "undefined"){
-        throw new Error("Root's children's parent is unitialized");
-      }
-
-      let cp:BNode = child.parent as BNode;
-      if (cp !== this){
-        throw new Error("Root's children are not correctly representing the root as parent");
-      }
+      if (typeof child.parent === "undefined")  { throw new Error("Root's children's parent is unitialized");}
+      if ((child.parent as BNode) !== this)     { throw new Error("Root's children are not correctly representing the root as parent");}
 
       child.validate_down();
     }
   }
 
   print_tree():void{
+    return this.print_tree_up();
+  }
+
+  print_tree_up():void{
     if(typeof this.parent != "undefined"){
-      return (this.parent as BNode).print_tree();
+      return (this.parent as BNode).print_tree_up();
     }
 
-    this.print_tree_down(0)
+    this.print_tree_down(0);
+    console.log("");
   }
 
   print_tree_down(cur_level:number):void{
-    if(cur_level === 0) {
+    if(cur_level === 0){
       console.log('// ' + this.thresholds);
-    } else if (cur_level === 1) {
+    }
+    else if (cur_level === 1){
       console.log(`// |${'────'.repeat(cur_level)} ${this.thresholds}`);
-    } else {
+    }
+    else{
       console.log(`// |${'    '.repeat(cur_level - 1)} |──── ${ this.thresholds}`);
     }
     
@@ -495,13 +505,48 @@ class BNode {
 
 
 
+function insertionTest001(){
+  let cur:BNode = new BNode(undefined, 5);
 
-let cur:BNode = new BNode(undefined, 5);
+  for (let i = 0; i <= 100; i += 5){
+    cur.insert_child_up(i ,"hi");
+  }
+  for (let i = 1; i <= 100; i += 5){
+    cur.insert_child_up(i ,"hi");
+  }
+  for (let i = 2; i <= 100; i += 5){
+    cur.insert_child_up(i ,"hi");
+  }
+  for (let i = 3; i <= 100; i += 5){
+    cur.insert_child_up(i ,"hi");
+  }
+  for (let i = 4; i <= 100; i += 5){
+    cur.insert_child_up(i ,"hi");
+  }
 
-for (let i = 0; i < 6; i++){
-  cur.insert_child_up(i,"hi");
+  cur.print_tree();
+  cur.validate_up();
 }
 
+function insertionTest002(){
+  let cur:BNode = new BNode(undefined, 5);
 
-cur.validate_up();
-cur.print_tree();
+  for (let i = 0; i <= 100; i ++){
+    cur.insert_child_up(i ,"hi");
+  }
+  
+  cur.print_tree();
+  cur.validate_up();
+}
+
+function insertionTest003(){
+  let cur:BNode = new BNode(undefined, 5);
+
+  for (let i = 100; i >= 0; i --){
+    cur.insert_child_up(i ,"hi");
+  }
+  
+  cur.print_tree();
+  cur.validate_up();
+}
+
