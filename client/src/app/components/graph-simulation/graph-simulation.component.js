@@ -7,8 +7,9 @@ var BNode = /** @class */ (function () {
         this.thresholds = new Array();
         this.datas = new Array();
         this.maxDegree = -1;
+        //Initialization
         if (maxDegree < 2) {
-            throw new Error("Unallowed initialization");
+            throw new Error("Disallowed initialization");
         }
         this.parent = parent;
         this.maxDegree = maxDegree;
@@ -16,7 +17,11 @@ var BNode = /** @class */ (function () {
     //Signals
     BNode.prototype.parent_changed = function (newParent) {
     };
-    BNode.prototype.search_down = function (userID) {
+    // Search algorithm
+    BNode.prototype.search = function (userID) {
+        return this._search_up(userID);
+    };
+    BNode.prototype._search_down = function (userID) {
         //Base case (leaf)
         if (this.children.length === 0) {
             for (var index = 0; index < this.thresholds.length; index++) {
@@ -30,78 +35,82 @@ var BNode = /** @class */ (function () {
         for (var index = 0; index < this.thresholds.length; index++) {
             var threshold = this.thresholds[index];
             if (userID < threshold) {
-                return this.children[index].search_down(userID);
+                return this.children[index]._search_down(userID);
             }
             else if (userID === threshold) {
                 return this.datas[index];
             }
         }
-        return this.children[this.children.length - 1].search_down(userID);
+        return this.children[this.children.length - 1]._search_down(userID);
     };
-    BNode.prototype.search_up = function (userID) {
+    BNode.prototype._search_up = function (userID) {
         //Base case (root)
         if (typeof this.parent === "undefined") {
-            return this.search_down(userID);
+            return this._search_down(userID);
         }
         //Iterate over the thresholds to find where the data could be
         for (var index = 0; index < this.thresholds.length; index++) {
             var threshold = this.thresholds[index];
             if (userID < threshold) {
                 if (index === 0) {
-                    return this.parent.search_up(userID);
+                    return this.parent._search_up(userID);
                 }
                 if (this.children.length === 0) {
-                    return this.search_down(userID);
+                    return this._search_down(userID);
                 }
-                return this.children[index].search_down(userID);
+                return this.children[index]._search_down(userID);
             }
             else if (userID === threshold) {
                 return this.datas[index];
             }
         }
-        return this.parent.search_up(userID);
+        return this.parent._search_up(userID);
     };
-    BNode.prototype.insert_child_down = function (userID, data) {
+    // Insertion algorithm
+    BNode.prototype.insert_child = function (userID, data) {
+        return this._insert_child_up(userID, data);
+    };
+    BNode.prototype._insert_child_down = function (userID, data) {
         //Base case (leaf)
         if (this.children.length === 0) {
-            return this.add_data_to_BNode(userID, data);
+            return this._add_data_to_node(userID, data);
         }
         //Iterate over the thresholds to find where the data is
         for (var index = 0; index < this.thresholds.length; index++) {
             var threshold = this.thresholds[index];
             if (userID < threshold) {
-                return this.children[index].insert_child_down(userID, data);
+                return this.children[index]._insert_child_down(userID, data);
             }
             else if (userID === threshold) {
                 throw new Error("Cannot add same user twice to the tree");
             }
         }
-        return this.children[this.children.length - 1].insert_child_down(userID, data);
+        return this.children[this.children.length - 1]._insert_child_down(userID, data);
     };
-    BNode.prototype.insert_child_up = function (userID, data) {
+    BNode.prototype._insert_child_up = function (userID, data) {
         //Base case (root)
         if (typeof this.parent === "undefined") {
-            return this.insert_child_down(userID, data);
+            return this._insert_child_down(userID, data);
         }
         //Iterate over the thresholds to find where the data could be
         for (var index = 0; index < this.thresholds.length; index++) {
             var threshold = this.thresholds[index];
             if (userID < threshold) {
                 if (index === 0) {
-                    return this.parent.insert_child_up(userID, data);
+                    return this.parent._insert_child_up(userID, data);
                 }
                 if (this.children.length === 0) {
-                    return this.add_data_to_BNode(userID, data);
+                    return this._add_data_to_node(userID, data);
                 }
-                return this.children[index].insert_child_down(userID, data);
+                return this.children[index]._insert_child_down(userID, data);
             }
             else if (userID === threshold) {
                 throw new Error("Cannot add same user twice to the tree");
             }
         }
-        return this.parent.insert_child_up(userID, data);
+        return this.parent._insert_child_up(userID, data);
     };
-    BNode.prototype.add_data_to_BNode = function (userID, data) {
+    BNode.prototype._add_data_to_node = function (userID, data) {
         //Assuming that the userID doesn't exist in the array
         //Add to arrays
         if (this.thresholds.length == 0) {
@@ -127,21 +136,21 @@ var BNode = /** @class */ (function () {
         }
         //Check if we have to split
         if (this.thresholds.length > this.maxDegree) {
-            return this.split_node_wrapper();
+            return this._split_node_wrapper();
         }
     };
-    BNode.prototype.split_node_wrapper = function () {
+    BNode.prototype._split_node_wrapper = function () {
         //This handles the edge cases before asking parent to split this BNode
         if (typeof this.parent === "undefined") {
             var tmpParent = new BNode(undefined, this.maxDegree);
             tmpParent.children.push(this);
             this.parent = tmpParent;
             this.parent_changed(tmpParent);
-            return tmpParent.split_node(this);
+            return tmpParent._split_node(this);
         }
-        return this.parent.split_node(this);
+        return this.parent._split_node(this);
     };
-    BNode.prototype.split_node = function (childBNode) {
+    BNode.prototype._split_node = function (childBNode) {
         //Assuming that childBNode.parent === this
         var newBNode = new BNode(this, this.maxDegree);
         var sizePartition1 = Math.floor(childBNode.thresholds.length / 2);
@@ -203,9 +212,10 @@ var BNode = /** @class */ (function () {
         }
         //Check if we have to split
         if (this.thresholds.length > this.maxDegree) {
-            return this.split_node_wrapper();
+            return this._split_node_wrapper();
         }
     };
+    // Deletion algorithm
     BNode.prototype.delete_down = function (userID) {
         //Base case (leaf)
         if (this.children.length === 0) {
@@ -374,7 +384,11 @@ var BNode = /** @class */ (function () {
         if (curNbBNodes <= this.maxDegree / 2) {
         }
     };
-    BNode.prototype.validate_self = function () {
+    // Validation algorithm
+    BNode.prototype.validate_tree = function () {
+        this._validate_up();
+    };
+    BNode.prototype._validate_self = function () {
         //Validate lengths
         if (this.datas.length !== this.thresholds.length) {
             throw new Error("Datas and Threshold lengths are inconsistent");
@@ -392,14 +406,14 @@ var BNode = /** @class */ (function () {
             }
         }
     };
-    BNode.prototype.validate_up = function () {
+    BNode.prototype._validate_up = function () {
         if (typeof this.parent === "undefined") {
-            return this.validate_down();
+            return this._validate_down();
         }
-        return this.parent.validate_up();
+        return this.parent._validate_up();
     };
-    BNode.prototype.validate_down = function () {
-        this.validate_self();
+    BNode.prototype._validate_down = function () {
+        this._validate_self();
         for (var _i = 0, _a = this.children; _i < _a.length; _i++) {
             var child = _a[_i];
             if (typeof child.parent === "undefined") {
@@ -408,20 +422,21 @@ var BNode = /** @class */ (function () {
             if (child.parent !== this) {
                 throw new Error("Root's children are not correctly representing the root as parent");
             }
-            child.validate_down();
+            child._validate_down();
         }
     };
+    // Print the tree
     BNode.prototype.print_tree = function () {
-        return this.print_tree_up();
+        return this._print_tree_up();
     };
-    BNode.prototype.print_tree_up = function () {
+    BNode.prototype._print_tree_up = function () {
         if (typeof this.parent != "undefined") {
-            return this.parent.print_tree_up();
+            return this.parent._print_tree_up();
         }
-        this.print_tree_down(0);
+        this._print_tree_down(0);
         console.log("");
     };
-    BNode.prototype.print_tree_down = function (cur_level) {
+    BNode.prototype._print_tree_down = function (cur_level) {
         if (cur_level === 0) {
             console.log('// ' + this.thresholds);
         }
@@ -433,7 +448,7 @@ var BNode = /** @class */ (function () {
         }
         for (var _i = 0, _a = this.children; _i < _a.length; _i++) {
             var child = _a[_i];
-            child.print_tree_down(cur_level + 1);
+            child._print_tree_down(cur_level + 1);
         }
     };
     return BNode;
@@ -441,67 +456,66 @@ var BNode = /** @class */ (function () {
 function insertionTest001() {
     var cur = new BNode(undefined, 5);
     for (var i = 0; i <= 100; i += 5) {
-        cur.insert_child_up(i, "hi");
+        cur.insert_child(i, "hi");
     }
     for (var i = 1; i <= 100; i += 5) {
-        cur.insert_child_up(i, "hi");
+        cur.insert_child(i, "hi");
     }
     for (var i = 2; i <= 100; i += 5) {
-        cur.insert_child_up(i, "hi");
+        cur.insert_child(i, "hi");
     }
     for (var i = 3; i <= 100; i += 5) {
-        cur.insert_child_up(i, "hi");
+        cur.insert_child(i, "hi");
     }
     for (var i = 4; i <= 100; i += 5) {
-        cur.insert_child_up(i, "hi");
+        cur.insert_child(i, "hi");
     }
     cur.print_tree();
-    cur.validate_up();
+    cur.validate_tree();
 }
 function insertionTest002() {
     var cur = new BNode(undefined, 5);
     for (var i = 0; i <= 100; i++) {
-        cur.insert_child_up(i, "hi");
+        cur.insert_child(i, "hi");
     }
     cur.print_tree();
-    cur.validate_up();
+    cur.validate_tree();
 }
 function insertionTest003() {
     var cur = new BNode(undefined, 5);
     for (var i = 100; i >= 0; i--) {
-        cur.insert_child_up(i, "hi");
+        cur.insert_child(i, "hi");
     }
     cur.print_tree();
-    cur.validate_up();
+    cur.validate_tree();
 }
 function searchTest001() {
     var cur = new BNode(undefined, 5);
     for (var i = 0; i <= 100; i += 5) {
-        cur.insert_child_up(i, "hi");
+        cur.insert_child(i, "hi");
     }
     for (var i = 1; i <= 100; i += 5) {
-        cur.insert_child_up(i, "hi");
+        cur.insert_child(i, "hi");
     }
     for (var i = 2; i <= 100; i += 5) {
-        cur.insert_child_up(i, "hi");
+        cur.insert_child(i, "hi");
     }
     for (var i = 3; i <= 100; i += 5) {
-        cur.insert_child_up(i, "hi");
+        cur.insert_child(i, "hi");
     }
     for (var i = 4; i <= 100; i += 5) {
-        cur.insert_child_up(i, "hi");
+        cur.insert_child(i, "hi");
     }
     for (var i = 0; i <= 100; i++) {
-        if (cur.search_up(i) !== "hi") {
+        if (cur.search(i) !== "hi") {
             throw new Error("Problem with the search");
         }
     }
     for (var i = 101; i <= 200; i++) {
-        if (typeof cur.search_up(i) !== "undefined") {
+        if (typeof cur.search(i) !== "undefined") {
             throw new Error("Problem with the search");
         }
     }
     console.log("Works");
 }
-insertionTest002();
-insertionTest003();
+searchTest001();
