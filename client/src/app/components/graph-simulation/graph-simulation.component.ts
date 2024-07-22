@@ -1,4 +1,6 @@
 import { Component } from '@angular/core';
+import { InjectSetupWrapper } from '@angular/core/testing';
+import { merge } from 'rxjs';
 
 @Component({
   selector: 'app-graph-simulation',
@@ -34,12 +36,76 @@ class Node {
 
 
 
-  balance():void{
+  balance(changedNode:Node):void{
+    let curNbNodes : number = this.thresholds.length;
+    //If the number of nodes here are smaller than half the max amount, then we have to compress
+    if (curNbNodes <= this.maxDegree / 2){
 
+    }
+  }
+
+  mergeNodes(node1:Node, node2:Node){
+    //Assuming that both nodes provided are from the same level
+    //Base Case: leaves
+    if (node1.children.length == 0){
+      node1.thresholds = node1.thresholds.concat(node2.thresholds);
+      node1.datas = node1.datas.concat(node2.datas);
+      return true;
+    }
+
+    
+    let leftChild = node1.children[node1.children.length - 1];
+    let rightChild = node2.children[0];
+
+    //Case 1: We have to keep merging
+    if (leftChild.thresholds.length + rightChild.thresholds.length < this.maxDegree){
+      node1.thresholds = node1.thresholds.concat(node2.thresholds);
+      node1.datas = node1.datas.concat(node2.datas);
+      node2.children.shift();
+      node1.children = node1.children.concat(node2.children);
+      this.mergeNodes(leftChild, rightChild)
+      return;
+    }
+
+    //Case 2: We can just rotate
+    else{
+      //Case 2.a: Left child has more entries
+      if (leftChild.thresholds.length > rightChild.thresholds.length){
+        let indexToPromote:number = leftChild.thresholds.length - 1;
+        let keyToPromote:Key = leftChild.thresholds[indexToPromote];
+        let dataToPromote:Data = leftChild.datas[indexToPromote];
+
+        leftChild.delete_wrapper(keyToPromote, indexToPromote);
+
+        node1.thresholds.push(keyToPromote);
+        node1.datas.push(dataToPromote);
+
+        node1.thresholds = node1.thresholds.concat(node2.thresholds);
+        node1.datas = node1.datas.concat(node2.datas);
+        node1.children = node1.children.concat(node2.children);
+      }
+  
+      //Case 2.b: Right child has more (or equal) entries
+      else{
+        let indexToPromote:number = 0;
+        let keyToPromote:Key = rightChild.thresholds[indexToPromote];
+        let dataToPromote:Data = rightChild.datas[indexToPromote];
+
+        rightChild.delete_wrapper(keyToPromote, indexToPromote);
+
+        node1.thresholds.push(keyToPromote);
+        node1.datas.push(dataToPromote);
+
+        node1.thresholds = node1.thresholds.concat(node2.thresholds);
+        node1.datas = node1.datas.concat(node2.datas);
+        node1.children = node1.children.concat(node2.children);
+      }
+      return;
+    }
   }
   
 
-  search_down(userID:number):Nullable<Data>{
+  search_down(userID:Key):Nullable<Data>{
     //Base case (leaf)
     if (this.children.length === 0){
       for (let index:number = 0; index < this.thresholds.length; index++){
@@ -61,7 +127,7 @@ class Node {
     return this.children[this.children.length-1].search_down(userID)
   }
 
-  search_up(userID:number):Nullable<Data>{
+  search_up(userID:Key):Nullable<Data>{
     //Base case (root)
     if (this.parent === undefined){
       return this.search_down(userID);
@@ -237,7 +303,7 @@ class Node {
     }
   }
 
-  delete_down(userID:number):boolean{
+  delete_down(userID:Key):boolean{
     //Base case (leaf)
     if (this.children.length === 0){
       for (let index:number = 0; index < this.thresholds.length; index++){
@@ -263,7 +329,7 @@ class Node {
     return this.children[this.children.length-1].delete_down(userID)
   }
 
-  delete_up(userID:number):boolean{
+  delete_up(userID:Key):boolean{
     //Base case (root)
     if (this.parent === undefined){
       return this.delete_down(userID);
@@ -287,21 +353,46 @@ class Node {
     return this.parent.delete_up(userID);
   }
 
-  delete_wrapper(userID:number, index:number):void{
+  delete_wrapper(userID:Key, index:number):void{
     //Assuming that userID is present in this.children
     //Assuming that children[index] == userID
     //Case 1: Leaf
     if (this.children.length === 0){
       this.datas.splice(index, 1);
       this.thresholds.splice(index, 1);
-      return this.balance();
+
+      if (this.datas.length <= this.maxDegree / 2){
+        if (this.parent == undefined){
+          return;
+        }
+        (this.parent as Node).balance(this);
+      }
+      return;
     }
 
     let leftChild:Node = this.children[index];
     let rightChild:Node = this.children[index + 1];
 
     //Case 2: No leaf
-    //Case 2.a: Left child has more entries
+    //Case 2.a: Compression
+    if (leftChild.thresholds.length + rightChild.thresholds.length < this.maxDegree){
+      this.children.splice(index + 1, 1);
+      this.datas.splice(index, 1);
+      this.thresholds.splice(index, 1);
+
+      this.mergeNodes(leftChild, rightChild);
+
+      if (this.datas.length <= this.maxDegree / 2){
+        if (this.parent == undefined){
+          return;
+        }
+        (this.parent as Node).balance(this);
+      }
+      return;
+    }
+    
+    //Case 2.b: Rotation
+    //Case 2.ba: Left child has more entries
     if (leftChild.thresholds.length > rightChild.thresholds.length){
       let indexToRem:number = leftChild.thresholds.length - 1;
       let thresholdToRem:Key = leftChild.thresholds[indexToRem];
@@ -311,10 +402,17 @@ class Node {
 
       this.thresholds[index] = thresholdToRem;
       this.datas[index] = dataToRem;
-      return this.balance();
+      
+      if (this.datas.length <= this.maxDegree / 2){
+        if (this.parent == undefined){
+          return;
+        }
+        (this.parent as Node).balance(this);
+      }
+      return;
     }
 
-    //Case 2.b: Right child has more (or equal) entries
+    //Case 2.bb: Right child has more (or equal) entries
     else{
       let indexToRem:number = rightChild.thresholds.length - 1;
       let thresholdToRem:Key = rightChild.thresholds[indexToRem];
@@ -324,7 +422,14 @@ class Node {
 
       this.thresholds[index] = thresholdToRem;
       this.datas[index] = dataToRem;
-      return this.balance();
+      
+      if (this.datas.length <= this.maxDegree / 2){
+        if (this.parent == undefined){
+          return;
+        }
+        (this.parent as Node).balance(this);
+      }
+      return;
     }
   }
 
