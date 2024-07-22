@@ -15,17 +15,19 @@ type Key = number;
 type Data = string;
 type Nullable<K> = undefined | K;
 
+let root:BNode;
 class BNode {
   //Signals
   parent_changed(newParent:BNode){
-
+    root = newParent;
+    console.log("Root has changed!");
   }
 
-  private parent:Nullable<BNode>;
-  private children:Array<BNode> = [];
-  private thresholds:Array<Key> = new Array<Key>();
-  private datas:Array<Data> = new Array<Data>();
-  private maxDegree:number = -1;
+  public parent:Nullable<BNode>;
+  public children:Array<BNode> = [];
+  public thresholds:Array<Key> = new Array<Key>();
+  public datas:Array<Data> = new Array<Data>();
+  public maxDegree:number = -1;
 
   constructor(parent:Nullable<BNode>, maxDegree:number){
     //Initialization
@@ -381,6 +383,7 @@ class BNode {
     }
   }
   _merge_nodes(BNode1:BNode, BNode2:BNode){
+    console.log("Merging");
     //Assuming that both BNodes provided are from the same level
     //Base Case: leaves
     if (BNode1.children.length == 0){
@@ -398,6 +401,9 @@ class BNode {
       BNode1.datas = BNode1.datas.concat(BNode2.datas);
       BNode2.children.shift();
       BNode1.children = BNode1.children.concat(BNode2.children);
+      for (let child of BNode1.children){
+        child.parent = BNode1;
+      }
       this._merge_nodes(leftChild, rightChild)
       return;
     }
@@ -418,6 +424,9 @@ class BNode {
         BNode1.thresholds = BNode1.thresholds.concat(BNode2.thresholds);
         BNode1.datas = BNode1.datas.concat(BNode2.datas);
         BNode1.children = BNode1.children.concat(BNode2.children);
+        for (let child of BNode1.children){
+          child.parent = BNode1;
+        }
       }
   
       //Case 2.b: Right child has more (or equal) entries
@@ -434,45 +443,214 @@ class BNode {
         BNode1.thresholds = BNode1.thresholds.concat(BNode2.thresholds);
         BNode1.datas = BNode1.datas.concat(BNode2.datas);
         BNode1.children = BNode1.children.concat(BNode2.children);
+        for (let child of BNode1.children){
+          child.parent = BNode1;
+        }
       }
       return;
     }
   }
   _balance_tree(changedBNode:BNode):void{
-    throw new Error("Balancing");
-    let curNbBNodes : number = this.thresholds.length;
-    //If the number of BNodes here are smaller than half the max amount, then we have to compress
-    if (curNbBNodes <= this.maxDegree / 2){ 
+    if (changedBNode.thresholds.length >= Math.floor(this.maxDegree / 2)){
+      return;
     }
+    console.log("Balancing");
+
+    //Finding the index
+    let index:number = 0;
+    let found:boolean = false;
+    
+    for (let child of this.children){
+      if (child === changedBNode){
+        found = true;
+        break;
+      }
+      index++;
+    }
+    if (!found){
+      throw new Error("Provided changedBNode doesn't exist in children list");
+    }
+
+    // See if we can compress the entire thing
+    let total:number = this.thresholds.length;
+    for (let child of this.children){
+      total += child.thresholds.length;
+    }
+    if (total <= this.maxDegree){
+      let iter = this.thresholds.length;
+      for (let i = iter; i >= 0; i--){
+        this.thresholds.splice(i, 0, ...this.children[i].thresholds);
+        this.datas.splice(i, 0, ...this.children[i].datas);
+      }
+
+      let tmpChildren:Array<BNode>= this.children;
+      this.children = [];
+      for (let child of tmpChildren){
+        this.children.push(...child.children);
+      }
+      for (let child of this.children){
+        child.parent = this;
+      }
+
+      if ((typeof this.parent !== "undefined") && (total < (this.maxDegree / 2))){
+        return (this.parent as BNode)._balance_tree(this);
+      }
+      return;
+    }
+
+    // Case 2: Rotate
+    if (index - 1 >= 0){
+      let child = this.children[index-1];
+      let child2 = this.children[index];
+      if (child.thresholds.length > Math.floor(this.maxDegree / 2) + 1){
+        let tmpIndex = child.thresholds.length - 1;
+
+        let tmpKey = child.thresholds[tmpIndex];
+        let tmpData = child.datas[tmpIndex];
+        child.thresholds.pop();
+        child.datas.pop();
+
+        if (child.children.length !== 0){
+          let tmpChild = child.children[tmpIndex + 1];
+          child.children.pop();
+          child2.children.unshift(tmpChild);
+          tmpChild.parent = child2;
+        }
+
+        let tmpKey1 = this.thresholds[index - 1];
+        let tmpData1 = this.datas[index - 1];
+        this.thresholds[index - 1] = tmpKey;
+        this.datas[index - 1] = tmpData;
+
+        child2.thresholds.unshift(tmpKey1);
+        child2.datas.unshift(tmpData1);
+        return;
+      }
+    }
+    // If the right child exists
+    if (index + 1 < this.children.length){
+      let child = this.children[index+1];
+      let child2 = this.children[index];
+      if (child.thresholds.length > Math.floor(this.maxDegree / 2) + 1){
+        let tmpKey = child.thresholds[0];
+        let tmpData = child.datas[0];
+        child.thresholds.shift();
+        child.datas.shift();
+
+        if (child.children.length !== 0){
+          let tmpChild = child.children[0]
+          child.children.shift();
+          child2.children.push(tmpChild);
+          tmpChild.parent = child2;
+        }
+
+        let tmpKey1 = this.thresholds[index];
+        let tmpData1 = this.datas[index];
+        this.thresholds[index] = tmpKey;
+        this.datas[index] = tmpData;
+
+        child2.thresholds.push(tmpKey1);
+        child2.datas.push(tmpData1);
+        return;
+      }
+    }
+    
+    // Case 1: Compress
+    // If the left child exists
+    if (index - 1 >= 0){
+      if (this.children[index-1].thresholds.length + this.children[index].thresholds.length < this.maxDegree){
+        let child = this.children[index - 1];
+        let child2 = this.children.splice(index, 1)[0];
+        let tmpKey = this.thresholds.splice(index-1, 1)[0];
+        let tmpData = this.datas.splice(index-1, 1)[0];
+
+        child.thresholds.push(tmpKey, ...child2.thresholds);
+        child.datas.push(tmpData, ...child2.datas);
+        child.children.push(...child2.children);
+
+        for (let tmpChild of child.children){
+          tmpChild.parent = child;
+        }
+        
+        this._balance_tree(this.children[index-1]);
+        if (typeof this.parent !== "undefined"){
+          (this.parent as BNode)._balance_tree(this);
+        }
+        return;
+      }
+    }
+    // If the right child exists
+    if (index + 1 < this.children.length){
+      if (this.children[index].thresholds.length + this.children[index+1].thresholds.length < this.maxDegree){
+        let child = this.children[index];
+        let child2 = this.children.splice(index+1, 1)[0];
+        let tmpKey = this.thresholds.splice(index, 1)[0];
+        let tmpData = this.datas.splice(index, 1)[0];
+
+        child.thresholds.push(tmpKey, ...child2.thresholds);
+        child.datas.push(tmpData, ...child2.datas);
+        child.children.push(...child2.children);
+
+        for (let tmpChild of child.children){
+          tmpChild.parent = child;
+        }
+
+        this._balance_tree(this.children[index]);
+        if (typeof this.parent !== "undefined"){
+          (this.parent as BNode)._balance_tree(this);
+        }
+        return;
+      }
+    }
+    throw new Error("Balancing failed");
   }
   
   // Validation algorithm
   validate_tree():void{
     this._validate_up();
   }
-  _validate_self():void{
+  _validate_self(minNumb:number, maxNumb:number):void{
     //Validate lengths
     if (this.datas.length !== this.thresholds.length) {throw new Error("Datas and Threshold lengths are inconsistent");}
     if (this.children.length !== 0 && this.datas.length !== (this.children.length - 1)) {throw new Error("Children lengths are inconsistent");}
     if (typeof this.parent !== "undefined" && this.datas.length < Math.floor(this.maxDegree / 2)) {throw new Error("Tree has nodes with less than the minimum amount of nodes ");}
-
+    
     //Validate ordering
     for (let i:number = 0; i < this.thresholds.length - 1; i++){
       if (this.thresholds[i] >= this.thresholds[i+1]){throw new Error("Threshold orderings are wrong");}
     }
+
+    //Validate order of data
+    if (this.thresholds[0] < minNumb){throw new Error("Thresholds in current node do not respect the min")}
+    if (this.thresholds[this.thresholds.length - 1] > maxNumb){throw new Error("Thresholds in current node do not respect the max")}
   }
   _validate_up():void{
-    if (typeof this.parent === "undefined"){return this._validate_down();}
+    if (typeof this.parent === "undefined"){return this._validate_down(-Infinity, Infinity);}
 
     return (this.parent as BNode)._validate_up()
   }
-  _validate_down():void{
-    this._validate_self();
-    for (let child of this.children){
-      if (typeof child.parent === "undefined")  { throw new Error("Root's children's parent is unitialized");}
-      if ((child.parent as BNode) !== this)     { throw new Error("Root's children are not correctly representing the root as parent");}
+  _validate_down(minNumb:number, maxNumb:number):void{
+    this._validate_self(minNumb, maxNumb);
+    for (let index = 0; index < this.children.length; index++){
+      let child = this.children[index]
+      if (typeof child.parent === "undefined")  { throw new Error("Children's parent is unitialized");}
+      if ((child.parent as BNode) !== this)     { throw new Error("Childrens are not correctly representing their parent as parent");}
 
-      child._validate_down();
+      let curMin:number = minNumb;
+      let curMax:number = maxNumb;
+
+      if (index === 0){
+        curMax = this.thresholds[0];
+      }
+      else if (index === this.children.length - 1){
+        curMin = this.thresholds[index - 1];
+      }
+      else{
+        curMin = this.thresholds[index - 1];
+        curMax = this.thresholds[index];
+      }
+
+      child._validate_down(curMin, curMax);
     }
   }
 
@@ -506,7 +684,13 @@ class BNode {
 }
 
 
+function insertionTests(){
+  insertionTest001();
+  insertionTest002();
+  insertionTest003();
 
+  console.log("Works");
+}
 function insertionTest001(){
   let cur:BNode = new BNode(undefined, 5);
 
@@ -526,7 +710,6 @@ function insertionTest001(){
     cur.insert_child(i ,"hi");
   }
 
-  cur.print_tree();
   cur.validate_tree();
 }
 function insertionTest002(){
@@ -536,19 +719,18 @@ function insertionTest002(){
     cur.insert_child(i ,"hi");
   }
   
-  cur.print_tree();
   cur.validate_tree();
 }
 function insertionTest003(){
-  let cur:BNode = new BNode(undefined, 5);
+  let cur:BNode = new BNode(undefined, 6);
 
   for (let i = 100; i >= 0; i --){
     cur.insert_child(i ,"hi");
   }
   
-  cur.print_tree();
   cur.validate_tree();
 }
+
 function searchTest001(){
   let cur:BNode = new BNode(undefined, 5);
 
@@ -581,18 +763,174 @@ function searchTest001(){
 
   console.log("Works");
 }
+
 function deleteTest001(){
   let cur:BNode = new BNode(undefined, 5);
 
-  for (let i = 0; i <= 100; i ++){
+  for (let i = 0; i <= 1000; i ++){
     cur.insert_child(i ,"hi");
   }
 
-  for (let i = 0; i <= 100; i++){
-    cur.delete(i);
-    cur.print_tree();
-    cur.validate_tree();
+  cur.print_tree();
+  cur.validate_tree();
+
+  for (let i = 0; i <= 1000; i++){
+    if(root.delete(i) !== true){
+      throw new Error("Deletion didn't delete");
+    }
+    // root.print_tree();
+    root.validate_tree();
   }
 }
+function deleteTest002(){
+  let cur:BNode = new BNode(undefined, 5);
 
-deleteTest001();
+  for (let i = 0; i <= 1000; i += 5){
+    cur.insert_child(i ,"hi");
+  }
+  for (let i = 1; i <= 1000; i += 5){
+    cur.insert_child(i ,"hi");
+  }
+  for (let i = 2; i <= 1000; i += 5){
+    cur.insert_child(i ,"hi");
+  }
+  for (let i = 3; i <= 1000; i += 5){
+    cur.insert_child(i ,"hi");
+  }
+  for (let i = 4; i <= 1000; i += 5){
+    cur.insert_child(i ,"hi");
+  }
+
+  cur.validate_tree();
+
+  for (let i = 0; i <= 1000; i += 5){
+    console.log("Deleting " + i);
+    root.print_tree();
+    if(root.delete(i) !== true){
+      throw new Error("Deletion didn't delete");
+    }
+    // cur.print_tree();
+    root.validate_tree();
+  }
+  for (let i = 1; i <= 1000; i += 5){
+    console.log("Deleting " + i);
+    if(root.delete(i) !== true){
+      throw new Error("Deletion didn't delete");
+    }
+    // cur.print_tree();
+    root.validate_tree();
+  }
+  for (let i = 2; i <= 1000; i += 5){
+    console.log("Deleting " + i);
+    if(root.delete(i) !== true){
+      throw new Error("Deletion didn't delete");
+    }
+    // cur.print_tree();
+    root.validate_tree();
+  }
+  for (let i = 3; i <= 1000; i += 5){
+    console.log("Deleting " + i);
+    if(root.delete(i) !== true){
+      throw new Error("Deletion didn't delete");
+    }
+    // cur.print_tree();
+    root.validate_tree();
+  }
+  for (let i = 4; i <= 1000; i += 5){
+    console.log("Deleting " + i);
+    if(root.delete(i) !== true){
+      throw new Error("Deletion didn't delete");
+    }
+    // cur.print_tree();
+    root.validate_tree();
+  }
+
+  console.log("All Good");
+}
+
+
+function validationTests(){
+  if (!validationTest001()){throw new Error("Doesn't work 001")}
+  if (!validationTest002()){throw new Error("Doesn't work 002")}
+  if (!validationTest003()){throw new Error("Doesn't work 003")}
+  if (!validationTest004()){throw new Error("Doesn't work 004")}
+
+  console.log("Works");
+}
+function validationTest001(){
+  let n:BNode = new BNode(undefined, 5);
+  n.children = [new BNode(n, 5),new BNode(n, 5),new BNode(n, 5),new BNode(n, 5),new BNode(n, 5)];
+  try{
+    n.validate_tree()
+  }
+  catch(e){
+    return true;
+  }
+  return false;
+}
+function validationTest002(){
+  let n:BNode = new BNode(undefined, 5);
+  let n1:BNode = new BNode(undefined, 5);
+  n.children = [new BNode(n1, 5),new BNode(n, 5),new BNode(n, 5),new BNode(n, 5),new BNode(n, 5)];
+  n.thresholds = [1,5,8,10]
+  n.datas = ["hi","hi","hi","hi"]
+  try{
+    n.validate_tree()
+  }
+  catch(e){
+    return true;
+  }
+  return false;
+}
+function validationTest003(){
+  let n:BNode = new BNode(undefined, 5);
+  n.children = [new BNode(n, 5),new BNode(n, 5),new BNode(n, 5),new BNode(n, 5),new BNode(n, 5)];
+  n.thresholds = [1,5,8,10]
+  n.datas = ["hi","hi","hi","hi"]
+  try{
+    n.validate_tree()
+  }
+  catch(e){
+    return true;
+  }
+  return false;
+}
+function validationTest004(){
+  let n:BNode = new BNode(undefined, 2);
+  let n1:BNode = new BNode(n, 2);
+  let n2:BNode = new BNode(n, 2);
+  let n11:BNode = new BNode(n1, 2);
+  let n12:BNode = new BNode(n1, 2);
+  let n21:BNode = new BNode(n2, 2);
+  let n22:BNode = new BNode(n2, 2);
+
+  n.children = [n1,n2]
+  n1.children = [n11,n12]
+  n2.children = [n21,n22]
+
+  n.thresholds = [10]
+  n.datas = ["hi"]
+  n1.thresholds = [5]
+  n1.datas = ["hi"]
+  n2.thresholds = [16]
+  n2.datas = ["hi"]
+  n11.thresholds = [2]
+  n11.datas = ["hi"]
+  n12.thresholds = [6]
+  n12.datas = ["hi"]
+  n21.thresholds = [12]
+  n21.datas = ["hi"]
+  n22.thresholds = [18]
+  n22.datas = ["hi"]
+
+  try{
+    n.validate_tree()
+  }
+  catch(e){
+    console.log(e)
+    return false;
+  }
+  return true;
+}
+
+deleteTest002();
