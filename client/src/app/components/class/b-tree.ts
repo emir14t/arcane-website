@@ -36,7 +36,7 @@ export class BNode<Data> {
   search(userID:Key):Nullable<Data>{
     return this._search_up(userID);
   }
-  _search_down(userID:Key):Nullable<Data>{
+  private _search_down(userID:Key):Nullable<Data>{
     //Base case (leaf)
     if (this.children.length === 0){
       for (let index:number = 0; index < this.thresholds.length; index++){
@@ -57,7 +57,7 @@ export class BNode<Data> {
     }
     return this.children[this.children.length-1]._search_down(userID)
   }
-  _search_up(userID:Key):Nullable<Data>{
+  private _search_up(userID:Key):Nullable<Data>{
     //Base case (root)
     if (typeof this.parent === "undefined"){
       return this._search_down(userID);
@@ -88,7 +88,7 @@ export class BNode<Data> {
   insert_child(userID:Key, data:Data):void{
     return this._insert_child_up(userID, data);
   }
-  _insert_child_down(userID:Key, data:Data):void{
+  private _insert_child_down(userID:Key, data:Data):void{
     //Base case (leaf)
     if (this.children.length === 0){
       return this._add_data_to_node(userID, data);
@@ -106,7 +106,7 @@ export class BNode<Data> {
     }
     return this.children[this.children.length-1]._insert_child_down(userID, data)
   }
-  _insert_child_up(userID:Key, data:Data):void{
+  private _insert_child_up(userID:Key, data:Data):void{
     //Base case (root)
     if (typeof this.parent === "undefined"){
       return this._insert_child_down(userID, data);
@@ -131,7 +131,7 @@ export class BNode<Data> {
     }
     return this.parent._insert_child_up(userID, data);
   }
-  _add_data_to_node(userID:Key, data:Data):void{
+  private _add_data_to_node(userID:Key, data:Data):void{
     //Assuming that the userID doesn't exist in the array
     //Add to arrays
     if (this.thresholds.length == 0){
@@ -161,7 +161,7 @@ export class BNode<Data> {
       return this._split_node_wrapper();
     }
   }
-  _split_node_wrapper():void{
+  private _split_node_wrapper():void{
     //This handles the edge cases before asking parent to split this BNode
     if (typeof this.parent === "undefined"){
       let tmpParent:BNode<Data> = new BNode(undefined, this.maxDegree);
@@ -173,7 +173,7 @@ export class BNode<Data> {
 
     return (this.parent as BNode<Data>)._split_node(this);
   }
-  _split_node(childBNode:BNode<Data>):void{
+  private _split_node(childBNode:BNode<Data>):void{
     //Assuming that childBNode.parent === this
     let newBNode:BNode<Data> = new BNode<Data>(this, this.maxDegree);
     let sizePartition1:number = Math.floor(childBNode.thresholds.length/2);
@@ -247,7 +247,7 @@ export class BNode<Data> {
   delete(userID:Key):boolean{
     return this._delete_up(userID);
   }
-  _delete_down(userID:Key):boolean{
+  private _delete_down(userID:Key):boolean{
     //Base case (leaf)
     if (this.children.length === 0){
       for (let index:number = 0; index < this.thresholds.length; index++){
@@ -272,7 +272,7 @@ export class BNode<Data> {
     }
     return this.children[this.children.length-1]._delete_down(userID)
   }
-  _delete_up(userID:Key):boolean{
+  private _delete_up(userID:Key):boolean{
     //Base case (root)
     if (typeof this.parent === "undefined"){
       return this._delete_down(userID);
@@ -298,7 +298,7 @@ export class BNode<Data> {
     }
     return this.parent._delete_up(userID);
   }
-  _delete_wrapper(userID:Key, index:number):void{
+  private _delete_wrapper(userID:Key, index:number):void{
     //Assuming that userID is present in this.children
     //Assuming that children[index] == userID
     //Case 1: Leaf
@@ -384,7 +384,7 @@ export class BNode<Data> {
       return;
     }
   }
-  _merge_nodes(BNode1:BNode<Data>, BNode2:BNode<Data>){
+  private _merge_nodes(BNode1:BNode<Data>, BNode2:BNode<Data>){
     //Assuming that both BNodes provided are from the same level
     //Base Case: leaves
     if (BNode1.children.length == 0){
@@ -451,7 +451,7 @@ export class BNode<Data> {
       return;
     }
   }
-  _balance_tree(changedBNode:BNode<Data>):void{
+  private _balance_tree(changedBNode:BNode<Data>):void{
     if (changedBNode.thresholds.length >= Math.floor(this.maxDegree / 2)){
       return;
     }
@@ -609,7 +609,7 @@ export class BNode<Data> {
   validate_tree():void{
     this._validate_up();
   }
-  _validate_self(minNumb:number, maxNumb:number):void{
+  private _validate_self(minNumb:number, maxNumb:number):void{
     //Validate lengths
     if (this.datas.length !== this.thresholds.length) {throw new Error("Datas and Threshold lengths are inconsistent");}
     if (this.children.length !== 0 && this.datas.length !== (this.children.length - 1)) {throw new Error("Children lengths are inconsistent");}
@@ -624,12 +624,12 @@ export class BNode<Data> {
     if (this.thresholds[0] < minNumb){throw new Error("Thresholds in current node do not respect the min")}
     if (this.thresholds[this.thresholds.length - 1] > maxNumb){throw new Error("Thresholds in current node do not respect the max")}
   }
-  _validate_up():void{
+  private _validate_up():void{
     if (typeof this.parent === "undefined"){return this._validate_down(-Infinity, Infinity);}
 
     return (this.parent as BNode<Data>)._validate_up()
   }
-  _validate_down(minNumb:number, maxNumb:number):void{
+  private _validate_down(minNumb:number, maxNumb:number):void{
     this._validate_self(minNumb, maxNumb);
     for (let index = 0; index < this.children.length; index++){
       let child = this.children[index]
@@ -658,7 +658,7 @@ export class BNode<Data> {
   print_tree():void{
     return this._print_tree_up();
   }
-  _print_tree_up():void{
+  private _print_tree_up():void{
     if(typeof this.parent != "undefined"){
       return (this.parent as BNode<Data>)._print_tree_up();
     }
