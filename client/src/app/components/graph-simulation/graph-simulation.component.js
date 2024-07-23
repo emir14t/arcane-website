@@ -353,7 +353,6 @@ var BNode = /** @class */ (function () {
         }
     };
     BNode.prototype._merge_nodes = function (BNode1, BNode2) {
-        console.log("Merging");
         //Assuming that both BNodes provided are from the same level
         //Base Case: leaves
         if (BNode1.children.length == 0) {
@@ -418,7 +417,6 @@ var BNode = /** @class */ (function () {
         if (changedBNode.thresholds.length >= Math.floor(this.maxDegree / 2)) {
             return;
         }
-        console.log("Balancing");
         //Finding the index
         var index = 0;
         var found = false;
@@ -651,55 +649,55 @@ function insertionTests() {
 function insertionTest001() {
     var cur = new BNode(undefined, 5);
     for (var i = 0; i <= 100; i += 5) {
-        cur.insert_child(i, "hi");
+        cur.insert_child(i, ["hi"]);
     }
     for (var i = 1; i <= 100; i += 5) {
-        cur.insert_child(i, "hi");
+        cur.insert_child(i, ["hi"]);
     }
     for (var i = 2; i <= 100; i += 5) {
-        cur.insert_child(i, "hi");
+        cur.insert_child(i, ["hi"]);
     }
     for (var i = 3; i <= 100; i += 5) {
-        cur.insert_child(i, "hi");
+        cur.insert_child(i, ["hi"]);
     }
     for (var i = 4; i <= 100; i += 5) {
-        cur.insert_child(i, "hi");
+        cur.insert_child(i, ["hi"]);
     }
     cur.validate_tree();
 }
 function insertionTest002() {
     var cur = new BNode(undefined, 5);
     for (var i = 0; i <= 100; i++) {
-        cur.insert_child(i, "hi");
+        cur.insert_child(i, ["hi"]);
     }
     cur.validate_tree();
 }
 function insertionTest003() {
     var cur = new BNode(undefined, 6);
     for (var i = 100; i >= 0; i--) {
-        cur.insert_child(i, "hi");
+        cur.insert_child(i, ["hi"]);
     }
     cur.validate_tree();
 }
 function searchTest001() {
     var cur = new BNode(undefined, 5);
     for (var i = 0; i <= 100; i += 5) {
-        cur.insert_child(i, "hi");
+        cur.insert_child(i, ["hi"]);
     }
     for (var i = 1; i <= 100; i += 5) {
-        cur.insert_child(i, "hi");
+        cur.insert_child(i, ["hi"]);
     }
     for (var i = 2; i <= 100; i += 5) {
-        cur.insert_child(i, "hi");
+        cur.insert_child(i, ["hi"]);
     }
     for (var i = 3; i <= 100; i += 5) {
-        cur.insert_child(i, "hi");
+        cur.insert_child(i, ["hi"]);
     }
     for (var i = 4; i <= 100; i += 5) {
-        cur.insert_child(i, "hi");
+        cur.insert_child(i, ["hi"]);
     }
     for (var i = 0; i <= 100; i++) {
-        if (cur.search(i) !== "hi") {
+        if (cur.search(i)[0] !== "hi") {
             throw new Error("Problem with the search");
         }
     }
@@ -713,7 +711,7 @@ function searchTest001() {
 function deleteTest001() {
     var cur = new BNode(undefined, 5);
     for (var i = 0; i <= 1000; i++) {
-        cur.insert_child(i, "hi");
+        cur.insert_child(i, ["hi"]);
     }
     cur.print_tree();
     cur.validate_tree();
@@ -731,18 +729,55 @@ function deleteTest002() {
     var max = 1000;
     for (var j = 0; j < leap; j++) {
         for (var i = j; i <= max; i += leap) {
-            cur.insert_child(i, "hi");
+            cur.insert_child(i, ["hi"]);
         }
     }
     cur.validate_tree();
     for (var j = 0; j < leap; j++) {
         for (var i = j; i <= max; i += leap) {
-            console.log("Deleting " + i);
+            // console.log("Deleting " + i);
             if (root.delete(i) !== true) {
                 cur.print_tree();
                 throw new Error("Deletion didn't delete");
             }
-            cur.print_tree();
+            // cur.print_tree();
+            root.validate_tree();
+        }
+    }
+    console.log("All Good");
+}
+function deleteTest003() {
+    var cur = new BNode(undefined, 5);
+    var leap = 5;
+    var max = 1000;
+    for (var j = 0; j < leap; j++) {
+        for (var i = j; i <= max; i += leap) {
+            cur.insert_child(i, ["hi"]);
+        }
+    }
+    cur.validate_tree();
+    for (var j = 0; j < leap; j++) {
+        for (var i = j; i <= max; i += leap) {
+            // console.log("Deleting " + i);
+            if (root.delete(i) !== true) {
+                root.print_tree();
+                throw new Error("Deletion didn't delete");
+            }
+            // cur.print_tree();
+            root.validate_tree();
+        }
+    }
+    for (var j = 0; j < leap; j++) {
+        for (var i = j; i <= max; i += leap) {
+            root.insert_child(i, ["hi"]);
+        }
+        for (var i = j; i <= max; i += leap) {
+            // console.log("Deleting " + i);
+            if (root.delete(i) !== true) {
+                root.print_tree();
+                throw new Error("Deletion didn't delete");
+            }
+            // root.print_tree();
             root.validate_tree();
         }
     }
@@ -779,7 +814,7 @@ function validationTest002() {
     var n1 = new BNode(undefined, 5);
     n.children = [new BNode(n1, 5), new BNode(n, 5), new BNode(n, 5), new BNode(n, 5), new BNode(n, 5)];
     n.thresholds = [1, 5, 8, 10];
-    n.datas = ["hi", "hi", "hi", "hi"];
+    n.datas = [["hi"], ["hi"], ["hi"], ["hi"]];
     try {
         n.validate_tree();
     }
@@ -792,7 +827,7 @@ function validationTest003() {
     var n = new BNode(undefined, 5);
     n.children = [new BNode(n, 5), new BNode(n, 5), new BNode(n, 5), new BNode(n, 5), new BNode(n, 5)];
     n.thresholds = [1, 5, 8, 10];
-    n.datas = ["hi", "hi", "hi", "hi"];
+    n.datas = [["hi"], ["hi"], ["hi"], ["hi"]];
     try {
         n.validate_tree();
     }
@@ -813,19 +848,19 @@ function validationTest004() {
     n1.children = [n11, n12];
     n2.children = [n21, n22];
     n.thresholds = [10];
-    n.datas = ["hi"];
+    n.datas = [["hi"]];
     n1.thresholds = [5];
-    n1.datas = ["hi"];
+    n1.datas = [["hi"]];
     n2.thresholds = [16];
-    n2.datas = ["hi"];
+    n2.datas = [["hi"]];
     n11.thresholds = [2];
-    n11.datas = ["hi"];
+    n11.datas = [["hi"]];
     n12.thresholds = [6];
-    n12.datas = ["hi"];
+    n12.datas = [["hi"]];
     n21.thresholds = [12];
-    n21.datas = ["hi"];
+    n21.datas = [["hi"]];
     n22.thresholds = [18];
-    n22.datas = ["hi"];
+    n22.datas = [["hi"]];
     try {
         n.validate_tree();
     }
@@ -835,4 +870,4 @@ function validationTest004() {
     }
     return true;
 }
-deleteTest002();
+deleteTest003();
