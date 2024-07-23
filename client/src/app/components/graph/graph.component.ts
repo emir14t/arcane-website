@@ -3,6 +3,7 @@ import { Chart, registerables } from 'chart.js';
 import { EdgeLine, GraphController } from 'chartjs-chart-graph';
 import { Node } from 'src/app/interface/interface';
 import * as nodeData from 'src/app/sample-data/test-graph.json';
+import opacity from 'hex-color-opacity';
 
 Chart.register(...registerables, GraphController, EdgeLine);
 
@@ -35,6 +36,13 @@ export class GraphComponent implements OnInit, AfterViewInit{
         datasets: [{
           data: dataset,
           edges : this.createEdges(),
+          pointBackgroundColor: "#745ced",
+          pointBorderColor: "#0D0628",
+          pointRadius: 15,
+          pointBorderWidth: 1,
+          pointStyle: "rectRounded",
+          borderWidth: 5,
+          borderColor: opacity("#B100E8", 0.1),
         }]
       },
     });
@@ -66,11 +74,11 @@ export class GraphComponent implements OnInit, AfterViewInit{
       });
 
       // Add edges for neighbor nodes
-      node.neighbors.forEach(neighborId => {
-        if (this.nodes.get(neighborId)) {
-          edges.push({ source: sourceIndex, target: keysArray.indexOf(neighborId) });
-        }
-      });
+      // node.neighbors.forEach(neighborId => {
+      //   if (this.nodes.get(neighborId)) {
+      //     edges.push({ source: sourceIndex, target: keysArray.indexOf(neighborId) });
+      //   }
+      // });
 
       // Add edge for parent node (if it exists)
       if (node.parent !== null && this.nodes.get(node.parent)) {
