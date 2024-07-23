@@ -13,6 +13,7 @@ import { SolutionsPageComponent } from './pages/solutions-page/solutions-page/so
 import { ContactPageComponent } from './pages/contact-page/contact-page/contact-page.component'
 import { TecPageComponent } from './pages/tec-page/tec-page/tec-page.component';
 import { GraphSimulationComponent } from './components/graph-simulation/graph-simulation.component';
+import { GraphComponent } from './components/graph/graph.component';
 
 @NgModule({
   declarations: [
@@ -25,6 +26,7 @@ import { GraphSimulationComponent } from './components/graph-simulation/graph-si
     ContactPageComponent,
     TecPageComponent,
     GraphSimulationComponent
+    GraphComponent
   ],
   imports: [
     BrowserModule,
