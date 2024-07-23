@@ -28,7 +28,6 @@ class BNode<Data> {
   public thresholds:Array<Key> = new Array<Key>();
   public datas:Array<Data> = new Array<Data>();
   public maxDegree:number = -1;
-  private rootIndex:number = -1;
 
   constructor(parent:Nullable<BNode<Data>>, maxDegree:number){
     //Initialization
