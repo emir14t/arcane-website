@@ -1,7 +1,4 @@
 // import { Component } from '@angular/core';
-// import { InjectSetupWrapper } from '@angular/core/testing';
-// import { merge } from 'rxjs';
-
 
 // @Component({
 //   selector: 'app-graph-simulation',
@@ -14,8 +11,18 @@
 type Key = number;
 type Nullable<K> = undefined | K;
 
-let curNumbTrees:number = 0;
+
 let root:BNode<any>;
+
+export interface Node{
+  id:number,
+  value:string,
+  depth:number,
+  breadth:number,
+  parent:number | null,
+  childs:number[],
+}
+
 class BNode<Data> {
   //Signals
   parent_changed(newParent:BNode<Data>){
@@ -92,6 +99,7 @@ class BNode<Data> {
     return this.parent._search_up(userID);
   }
 
+  // Make insert_child() return the node in which he wrote
   // Insertion algorithm
   insert_child(userID:Key, data:Data):void{
     return this._insert_child_up(userID, data);
@@ -691,169 +699,241 @@ class BNode<Data> {
   }
 }
 
+function bnode_tree_to_node_map(root:BNode<any>):Map<number, Node>{
+  let queue1:Array<BNode<any>> = [root];
+  let queue2:Array<BNode<any>> = [];
+  let turnstile = true;
 
-function allTests(){
-  insertionTest001();
-  insertionTest002();
-  insertionTest003();
-  searchTest001();
-  deleteTest001();
-  deleteTest002();
-  deleteTest003();
+  let depth = 0;
+  let breadth = 0;
+  let curID = 1;
 
-  console.log("Works");
-}
-function insertionTest001(){
-  let cur:BNode<Array<string>> = new BNode(undefined, 5);
+  let retMap:Map<number, Node> = new Map();
+  let helpMap:Map<Key, number> = new Map();
+  helpMap.set(root.thresholds[0], 0)
 
-  for (let i = 0; i <= 100; i += 5){
-    cur.insert_child(i ,["hi"]);
-  }
-  for (let i = 1; i <= 100; i += 5){
-    cur.insert_child(i ,["hi"]);
-  }
-  for (let i = 2; i <= 100; i += 5){
-    cur.insert_child(i ,["hi"]);
-  }
-  for (let i = 3; i <= 100; i += 5){
-    cur.insert_child(i ,["hi"]);
-  }
-  for (let i = 4; i <= 100; i += 5){
-    cur.insert_child(i ,["hi"]);
-  }
-
-  cur.validate_tree();
-}
-function insertionTest002(){
-  let cur:BNode<Array<string>> = new BNode(undefined, 5);
-
-  for (let i = 0; i <= 100; i ++){
-    cur.insert_child(i ,["hi"]);
-  }
-  
-  cur.validate_tree();
-}
-function insertionTest003(){
-  let cur:BNode<Array<string>> = new BNode(undefined, 6);
-
-  for (let i = 100; i >= 0; i --){
-    cur.insert_child(i ,["hi"]);
-  }
-  
-  cur.validate_tree();
-}
-
-function searchTest001(){
-  let cur:BNode<Array<string>> = new BNode(undefined, 5);
-
-  for (let i = 0; i <= 100; i += 5){
-    cur.insert_child(i ,["hi"]);
-  }
-  for (let i = 1; i <= 100; i += 5){
-    cur.insert_child(i ,["hi"]);
-  }
-  for (let i = 2; i <= 100; i += 5){
-    cur.insert_child(i ,["hi"]);
-  }
-  for (let i = 3; i <= 100; i += 5){
-    cur.insert_child(i ,["hi"]);
-  }
-  for (let i = 4; i <= 100; i += 5){
-    cur.insert_child(i ,["hi"]);
-  }
-  
-  for (let i = 0; i <= 100; i ++){
-    if ((cur.search(i) as Array<string>)[0] !== "hi"){
-      throw new Error("Problem with the search");
+  while(queue1.length !== 0 || queue2.length !== 0){
+    if (turnstile){
+      for (let i = 0; i < queue1.length; i++){
+        let node = queue1[i];
+        let children = []
+        for (let child of node.children){
+          helpMap.set(child.thresholds[0], curID);
+          children.push(curID);
+          queue2.push(child);
+          curID++;
+        }
+        
+        let id:number = (helpMap.get(node.thresholds[0]) as number);
+        let parent:null|number = typeof node.parent === "undefined" ? null : (helpMap.get(node.parent.thresholds[0]) as number);
+        retMap.set(id, {id:id, value:node.thresholds.toString(), depth:depth, breadth:breadth, parent:parent, childs:children});
+        breadth++;
+      }
+      queue1 = []
     }
-  }
-  for (let i = 101; i <= 200; i++){
-    if (typeof cur.search(i) !== "undefined"){
-      throw new Error("Problem with the search");
+    else{
+      for (let i = 0; i < queue2.length; i++){
+        let node = queue2[i];
+        let children = []
+        for (let child of node.children){
+          helpMap.set(child.thresholds[0], curID);
+          children.push(curID);
+          queue1.push(child);
+          curID++;
+        }
+        
+        let id:number = (helpMap.get(node.thresholds[0]) as number);
+        let parent:null|number = typeof node.parent === "undefined" ? null : (helpMap.get(node.parent.thresholds[0]) as number);
+        retMap.set(id, {id:id, value:node.thresholds.toString(), depth:depth, breadth:breadth, parent:parent, childs:children});
+        breadth++;
+      }
+      queue2 = []
     }
+    depth ++;
+    breadth = 0;
+    turnstile = !turnstile;
   }
+
+  return retMap;
 }
 
-function deleteTest001(){
-  let cur:BNode<Array<string>> = new BNode(undefined, 5);
 
-  for (let i = 0; i <= 1000; i ++){
-    cur.insert_child(i ,["hi"]);
+class Testing{
+  allTests(){
+    this.insertionTest001();
+    this.insertionTest002();
+    this.insertionTest003();
+    this.searchTest001();
+    this.deleteTest001();
+    this.deleteTest002();
+    this.deleteTest003();
+
+    console.log("Works");
   }
 
-  // cur.print_tree();
-  cur.validate_tree();
+  insertionTest001(){
+    let cur:BNode<Array<string>> = new BNode(undefined, 5);
 
-  for (let i = 0; i <= 1000; i++){
-    if(root.delete(i) !== true){
-      throw new Error("Deletion didn't delete");
-    }
-    // root.print_tree();
-    root.validate_tree();
-  }
-}
-function deleteTest002(){
-  let cur:BNode<Array<string>> = new BNode(undefined, 5);
-  let leap = 5;
-  let max = 1000;
-  for (let j = 0; j < leap; j++){
-    for (let i = j; i <= max; i += leap){
+    for (let i = 0; i <= 100; i += 5){
       cur.insert_child(i ,["hi"]);
     }
-  }
-
-  cur.validate_tree();
-  for (let j = 0; j < leap; j++){
-    for (let i = j; i <= max; i += leap){
-      // console.log("Deleting " + i);
-      if(root.delete(i) !== true){
-        cur.print_tree();
-        throw new Error("Deletion didn't delete");
-      }
-      // cur.print_tree();
-      root.validate_tree();
-    }
-  }
-}
-function deleteTest003(){
-  let cur:BNode<Array<string>> = new BNode(undefined, 5);
-  let leap = 5;
-  let max = 1000;
-  for (let j = 0; j < leap; j++){
-    for (let i = j; i <= max; i += leap){
+    for (let i = 1; i <= 100; i += 5){
       cur.insert_child(i ,["hi"]);
     }
+    for (let i = 2; i <= 100; i += 5){
+      cur.insert_child(i ,["hi"]);
+    }
+    for (let i = 3; i <= 100; i += 5){
+      cur.insert_child(i ,["hi"]);
+    }
+    for (let i = 4; i <= 100; i += 5){
+      cur.insert_child(i ,["hi"]);
+    }
+
+    cur.validate_tree();
+  }
+  insertionTest002(){
+    let cur:BNode<Array<string>> = new BNode(undefined, 5);
+
+    for (let i = 0; i <= 100; i ++){
+      cur.insert_child(i ,["hi"]);
+    }
+    
+    cur.validate_tree();
+  }
+  insertionTest003(){
+    let cur:BNode<Array<string>> = new BNode(undefined, 6);
+
+    for (let i = 100; i >= 0; i --){
+      cur.insert_child(i ,["hi"]);
+    }
+    
+    cur.validate_tree();
   }
 
-  cur.validate_tree();
-  for (let j = 0; j < leap; j++){
-    for (let i = j; i <= max; i += leap){
-      // console.log("Deleting " + i);
-      if(root.delete(i) !== true){
-        root.print_tree();
-        throw new Error("Deletion didn't delete");
+  searchTest001(){
+    let cur:BNode<Array<string>> = new BNode(undefined, 5);
+
+    for (let i = 0; i <= 100; i += 5){
+      cur.insert_child(i ,["hi"]);
+    }
+    for (let i = 1; i <= 100; i += 5){
+      cur.insert_child(i ,["hi"]);
+    }
+    for (let i = 2; i <= 100; i += 5){
+      cur.insert_child(i ,["hi"]);
+    }
+    for (let i = 3; i <= 100; i += 5){
+      cur.insert_child(i ,["hi"]);
+    }
+    for (let i = 4; i <= 100; i += 5){
+      cur.insert_child(i ,["hi"]);
+    }
+    
+    for (let i = 0; i <= 100; i ++){
+      if ((cur.search(i) as Array<string>)[0] !== "hi"){
+        throw new Error("Problem with the search");
       }
-      // cur.print_tree();
-      root.validate_tree();
+    }
+    for (let i = 101; i <= 200; i++){
+      if (typeof cur.search(i) !== "undefined"){
+        throw new Error("Problem with the search");
+      }
     }
   }
 
-  for (let j = 0; j < leap; j++){
-    for (let i = j; i <= max; i += leap){
-      root.insert_child(i ,["hi"]);
+  deleteTest001(){
+    let cur:BNode<Array<string>> = new BNode(undefined, 5);
+
+    for (let i = 0; i <= 1000; i ++){
+      cur.insert_child(i ,["hi"]);
     }
-    for (let i = j; i <= max; i += leap){
-      // console.log("Deleting " + i);
+
+    // cur.print_tree();
+    cur.validate_tree();
+
+    for (let i = 0; i <= 1000; i++){
       if(root.delete(i) !== true){
-        root.print_tree();
         throw new Error("Deletion didn't delete");
       }
       // root.print_tree();
       root.validate_tree();
     }
   }
+  deleteTest002(){
+    let cur:BNode<Array<string>> = new BNode(undefined, 5);
+    let leap = 5;
+    let max = 1000;
+    for (let j = 0; j < leap; j++){
+      for (let i = j; i <= max; i += leap){
+        cur.insert_child(i ,["hi"]);
+      }
+    }
+
+    cur.validate_tree();
+    for (let j = 0; j < leap; j++){
+      for (let i = j; i <= max; i += leap){
+        // console.log("Deleting " + i);
+        if(root.delete(i) !== true){
+          cur.print_tree();
+          throw new Error("Deletion didn't delete");
+        }
+        // cur.print_tree();
+        root.validate_tree();
+      }
+    }
+  }
+  deleteTest003(){
+    let cur:BNode<Array<string>> = new BNode(undefined, 5);
+    let leap = 5;
+    let max = 1000;
+    for (let j = 0; j < leap; j++){
+      for (let i = j; i <= max; i += leap){
+        cur.insert_child(i ,["hi"]);
+      }
+    }
+
+    cur.validate_tree();
+    for (let j = 0; j < leap; j++){
+      for (let i = j; i <= max; i += leap){
+        // console.log("Deleting " + i);
+        if(root.delete(i) !== true){
+          root.print_tree();
+          throw new Error("Deletion didn't delete");
+        }
+        // cur.print_tree();
+        root.validate_tree();
+      }
+    }
+
+    for (let j = 0; j < leap; j++){
+      for (let i = j; i <= max; i += leap){
+        root.insert_child(i ,["hi"]);
+      }
+      for (let i = j; i <= max; i += leap){
+        // console.log("Deleting " + i);
+        if(root.delete(i) !== true){
+          root.print_tree();
+          throw new Error("Deletion didn't delete");
+        }
+        // root.print_tree();
+        root.validate_tree();
+      }
+    }
+  }
+
+  test_bnode_tree_to_node_map(){
+    let cur:BNode<Array<string>> = new BNode(undefined, 5);
+  
+    for (let i = 0; i <= 100; i ++){
+      cur.insert_child(i ,["hi"]);
+    }
+  
+    cur.print_tree();
+  
+    console.log(bnode_tree_to_node_map(root));
+  }
 }
 
-
-
-allTests();
+let t = new Testing();
+t.test_bnode_tree_to_node_map();

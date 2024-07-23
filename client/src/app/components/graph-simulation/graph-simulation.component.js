@@ -1,3 +1,4 @@
+"use strict";
 // import { Component } from '@angular/core';
 // import { InjectSetupWrapper } from '@angular/core/testing';
 // import { merge } from 'rxjs';
@@ -10,7 +11,7 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
     }
     return to.concat(ar || Array.prototype.slice.call(from));
 };
-var curNumbTrees = 0;
+Object.defineProperty(exports, "__esModule", { value: true });
 var root;
 var BNode = /** @class */ (function () {
     function BNode(parent, maxDegree) {
@@ -18,7 +19,6 @@ var BNode = /** @class */ (function () {
         this.thresholds = new Array();
         this.datas = new Array();
         this.maxDegree = -1;
-        this.rootIndex = -1;
         //Initialization
         if (maxDegree < 2) {
             throw new Error("Disallowed initialization");
@@ -83,6 +83,7 @@ var BNode = /** @class */ (function () {
         }
         return this.parent._search_up(userID);
     };
+    // Make insert_child() return the node in which he wrote
     // Insertion algorithm
     BNode.prototype.insert_child = function (userID, data) {
         return this._insert_child_up(userID, data);
@@ -645,148 +646,214 @@ var BNode = /** @class */ (function () {
     };
     return BNode;
 }());
-function allTests() {
-    insertionTest001();
-    insertionTest002();
-    insertionTest003();
-    searchTest001();
-    deleteTest001();
-    deleteTest002();
-    deleteTest003();
-    console.log("Works");
-}
-function insertionTest001() {
-    var cur = new BNode(undefined, 5);
-    for (var i = 0; i <= 100; i += 5) {
-        cur.insert_child(i, ["hi"]);
-    }
-    for (var i = 1; i <= 100; i += 5) {
-        cur.insert_child(i, ["hi"]);
-    }
-    for (var i = 2; i <= 100; i += 5) {
-        cur.insert_child(i, ["hi"]);
-    }
-    for (var i = 3; i <= 100; i += 5) {
-        cur.insert_child(i, ["hi"]);
-    }
-    for (var i = 4; i <= 100; i += 5) {
-        cur.insert_child(i, ["hi"]);
-    }
-    cur.validate_tree();
-}
-function insertionTest002() {
-    var cur = new BNode(undefined, 5);
-    for (var i = 0; i <= 100; i++) {
-        cur.insert_child(i, ["hi"]);
-    }
-    cur.validate_tree();
-}
-function insertionTest003() {
-    var cur = new BNode(undefined, 6);
-    for (var i = 100; i >= 0; i--) {
-        cur.insert_child(i, ["hi"]);
-    }
-    cur.validate_tree();
-}
-function searchTest001() {
-    var cur = new BNode(undefined, 5);
-    for (var i = 0; i <= 100; i += 5) {
-        cur.insert_child(i, ["hi"]);
-    }
-    for (var i = 1; i <= 100; i += 5) {
-        cur.insert_child(i, ["hi"]);
-    }
-    for (var i = 2; i <= 100; i += 5) {
-        cur.insert_child(i, ["hi"]);
-    }
-    for (var i = 3; i <= 100; i += 5) {
-        cur.insert_child(i, ["hi"]);
-    }
-    for (var i = 4; i <= 100; i += 5) {
-        cur.insert_child(i, ["hi"]);
-    }
-    for (var i = 0; i <= 100; i++) {
-        if (cur.search(i)[0] !== "hi") {
-            throw new Error("Problem with the search");
+function bnode_tree_to_node_map(root) {
+    var queue1 = [root];
+    var queue2 = [];
+    var turnstile = true;
+    var depth = 0;
+    var breadth = 0;
+    var curID = 1;
+    var retMap = new Map();
+    var helpMap = new Map();
+    helpMap.set(root.thresholds[0], 0);
+    while (queue1.length !== 0 || queue2.length !== 0) {
+        if (turnstile) {
+            for (var i = 0; i < queue1.length; i++) {
+                var node = queue1[i];
+                var children = [];
+                for (var _i = 0, _a = node.children; _i < _a.length; _i++) {
+                    var child = _a[_i];
+                    helpMap.set(child.thresholds[0], curID);
+                    children.push(curID);
+                    queue2.push(child);
+                    curID++;
+                }
+                var id = helpMap.get(node.thresholds[0]);
+                var parent_1 = typeof node.parent === "undefined" ? null : helpMap.get(node.parent.thresholds[0]);
+                retMap.set(id, { id: id, value: node.thresholds.toString(), depth: depth, breadth: breadth, parent: parent_1, childs: children });
+                breadth++;
+            }
+            queue1 = [];
         }
-    }
-    for (var i = 101; i <= 200; i++) {
-        if (typeof cur.search(i) !== "undefined") {
-            throw new Error("Problem with the search");
+        else {
+            for (var i = 0; i < queue2.length; i++) {
+                var node = queue2[i];
+                var children = [];
+                for (var _b = 0, _c = node.children; _b < _c.length; _b++) {
+                    var child = _c[_b];
+                    helpMap.set(child.thresholds[0], curID);
+                    children.push(curID);
+                    queue1.push(child);
+                    curID++;
+                }
+                var id = helpMap.get(node.thresholds[0]);
+                var parent_2 = typeof node.parent === "undefined" ? null : helpMap.get(node.parent.thresholds[0]);
+                retMap.set(id, { id: id, value: node.thresholds.toString(), depth: depth, breadth: breadth, parent: parent_2, childs: children });
+                breadth++;
+            }
+            queue2 = [];
         }
+        depth++;
+        breadth = 0;
+        turnstile = !turnstile;
     }
+    return retMap;
 }
-function deleteTest001() {
-    var cur = new BNode(undefined, 5);
-    for (var i = 0; i <= 1000; i++) {
-        cur.insert_child(i, ["hi"]);
+var Testing = /** @class */ (function () {
+    function Testing() {
     }
-    // cur.print_tree();
-    cur.validate_tree();
-    for (var i = 0; i <= 1000; i++) {
-        if (root.delete(i) !== true) {
-            throw new Error("Deletion didn't delete");
-        }
-        // root.print_tree();
-        root.validate_tree();
-    }
-}
-function deleteTest002() {
-    var cur = new BNode(undefined, 5);
-    var leap = 5;
-    var max = 1000;
-    for (var j = 0; j < leap; j++) {
-        for (var i = j; i <= max; i += leap) {
+    Testing.prototype.allTests = function () {
+        this.insertionTest001();
+        this.insertionTest002();
+        this.insertionTest003();
+        this.searchTest001();
+        this.deleteTest001();
+        this.deleteTest002();
+        this.deleteTest003();
+        console.log("Works");
+    };
+    Testing.prototype.insertionTest001 = function () {
+        var cur = new BNode(undefined, 5);
+        for (var i = 0; i <= 100; i += 5) {
             cur.insert_child(i, ["hi"]);
         }
-    }
-    cur.validate_tree();
-    for (var j = 0; j < leap; j++) {
-        for (var i = j; i <= max; i += leap) {
-            // console.log("Deleting " + i);
-            if (root.delete(i) !== true) {
-                cur.print_tree();
-                throw new Error("Deletion didn't delete");
-            }
-            // cur.print_tree();
-            root.validate_tree();
-        }
-    }
-}
-function deleteTest003() {
-    var cur = new BNode(undefined, 5);
-    var leap = 5;
-    var max = 1000;
-    for (var j = 0; j < leap; j++) {
-        for (var i = j; i <= max; i += leap) {
+        for (var i = 1; i <= 100; i += 5) {
             cur.insert_child(i, ["hi"]);
         }
-    }
-    cur.validate_tree();
-    for (var j = 0; j < leap; j++) {
-        for (var i = j; i <= max; i += leap) {
-            // console.log("Deleting " + i);
-            if (root.delete(i) !== true) {
-                root.print_tree();
-                throw new Error("Deletion didn't delete");
+        for (var i = 2; i <= 100; i += 5) {
+            cur.insert_child(i, ["hi"]);
+        }
+        for (var i = 3; i <= 100; i += 5) {
+            cur.insert_child(i, ["hi"]);
+        }
+        for (var i = 4; i <= 100; i += 5) {
+            cur.insert_child(i, ["hi"]);
+        }
+        cur.validate_tree();
+    };
+    Testing.prototype.insertionTest002 = function () {
+        var cur = new BNode(undefined, 5);
+        for (var i = 0; i <= 100; i++) {
+            cur.insert_child(i, ["hi"]);
+        }
+        cur.validate_tree();
+    };
+    Testing.prototype.insertionTest003 = function () {
+        var cur = new BNode(undefined, 6);
+        for (var i = 100; i >= 0; i--) {
+            cur.insert_child(i, ["hi"]);
+        }
+        cur.validate_tree();
+    };
+    Testing.prototype.searchTest001 = function () {
+        var cur = new BNode(undefined, 5);
+        for (var i = 0; i <= 100; i += 5) {
+            cur.insert_child(i, ["hi"]);
+        }
+        for (var i = 1; i <= 100; i += 5) {
+            cur.insert_child(i, ["hi"]);
+        }
+        for (var i = 2; i <= 100; i += 5) {
+            cur.insert_child(i, ["hi"]);
+        }
+        for (var i = 3; i <= 100; i += 5) {
+            cur.insert_child(i, ["hi"]);
+        }
+        for (var i = 4; i <= 100; i += 5) {
+            cur.insert_child(i, ["hi"]);
+        }
+        for (var i = 0; i <= 100; i++) {
+            if (cur.search(i)[0] !== "hi") {
+                throw new Error("Problem with the search");
             }
-            // cur.print_tree();
-            root.validate_tree();
         }
-    }
-    for (var j = 0; j < leap; j++) {
-        for (var i = j; i <= max; i += leap) {
-            root.insert_child(i, ["hi"]);
+        for (var i = 101; i <= 200; i++) {
+            if (typeof cur.search(i) !== "undefined") {
+                throw new Error("Problem with the search");
+            }
         }
-        for (var i = j; i <= max; i += leap) {
-            // console.log("Deleting " + i);
+    };
+    Testing.prototype.deleteTest001 = function () {
+        var cur = new BNode(undefined, 5);
+        for (var i = 0; i <= 1000; i++) {
+            cur.insert_child(i, ["hi"]);
+        }
+        // cur.print_tree();
+        cur.validate_tree();
+        for (var i = 0; i <= 1000; i++) {
             if (root.delete(i) !== true) {
-                root.print_tree();
                 throw new Error("Deletion didn't delete");
             }
             // root.print_tree();
             root.validate_tree();
         }
+    };
+    Testing.prototype.deleteTest002 = function () {
+        var cur = new BNode(undefined, 5);
+        var leap = 5;
+        var max = 1000;
+        for (var j = 0; j < leap; j++) {
+            for (var i = j; i <= max; i += leap) {
+                cur.insert_child(i, ["hi"]);
+            }
+        }
+        cur.validate_tree();
+        for (var j = 0; j < leap; j++) {
+            for (var i = j; i <= max; i += leap) {
+                // console.log("Deleting " + i);
+                if (root.delete(i) !== true) {
+                    cur.print_tree();
+                    throw new Error("Deletion didn't delete");
+                }
+                // cur.print_tree();
+                root.validate_tree();
+            }
+        }
+    };
+    Testing.prototype.deleteTest003 = function () {
+        var cur = new BNode(undefined, 5);
+        var leap = 5;
+        var max = 1000;
+        for (var j = 0; j < leap; j++) {
+            for (var i = j; i <= max; i += leap) {
+                cur.insert_child(i, ["hi"]);
+            }
+        }
+        cur.validate_tree();
+        for (var j = 0; j < leap; j++) {
+            for (var i = j; i <= max; i += leap) {
+                // console.log("Deleting " + i);
+                if (root.delete(i) !== true) {
+                    root.print_tree();
+                    throw new Error("Deletion didn't delete");
+                }
+                // cur.print_tree();
+                root.validate_tree();
+            }
+        }
+        for (var j = 0; j < leap; j++) {
+            for (var i = j; i <= max; i += leap) {
+                root.insert_child(i, ["hi"]);
+            }
+            for (var i = j; i <= max; i += leap) {
+                // console.log("Deleting " + i);
+                if (root.delete(i) !== true) {
+                    root.print_tree();
+                    throw new Error("Deletion didn't delete");
+                }
+                // root.print_tree();
+                root.validate_tree();
+            }
+        }
+    };
+    return Testing;
+}());
+function test_bnode_tree_to_node_map() {
+    var cur = new BNode(undefined, 5);
+    for (var i = 0; i <= 100; i++) {
+        cur.insert_child(i, ["hi"]);
     }
+    cur.print_tree();
+    console.log(bnode_tree_to_node_map(root));
 }
-allTests();
+test_bnode_tree_to_node_map();
