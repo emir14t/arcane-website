@@ -344,11 +344,15 @@ class BNode {
     //Case 2.b: Rotation
     //Case 2.ba: Left child has more entries
     if (leftChild.thresholds.length > rightChild.thresholds.length){
-      let indexToRem:number = leftChild.thresholds.length - 1;
-      let thresholdToRem:Key = leftChild.thresholds[indexToRem];
-      let dataToRem:Data = leftChild.datas[indexToRem];
+      let childToDeleteFrom = leftChild;
+      while(childToDeleteFrom.children.length !== 0){
+        childToDeleteFrom = childToDeleteFrom.children[childToDeleteFrom.children.length - 1];
+      }
+      let indexToRem:number = childToDeleteFrom.thresholds.length - 1;
+      let thresholdToRem:Key = childToDeleteFrom.thresholds[indexToRem];
+      let dataToRem:Data = childToDeleteFrom.datas[indexToRem];
 
-      this.children[index]._delete_wrapper(thresholdToRem, indexToRem);
+      childToDeleteFrom._delete_wrapper(thresholdToRem, indexToRem);
 
       this.thresholds[index] = thresholdToRem;
       this.datas[index] = dataToRem;
@@ -364,11 +368,14 @@ class BNode {
 
     //Case 2.bb: Right child has more (or equal) entries
     else{
-      let indexToRem:number = rightChild.thresholds.length - 1;
-      let thresholdToRem:Key = rightChild.thresholds[indexToRem];
-      let dataToRem:Data = rightChild.datas[indexToRem];
+      let childToDeleteFrom = rightChild;
+      while(childToDeleteFrom.children.length !== 0){
+        childToDeleteFrom = childToDeleteFrom.children[0];
+      }
+      let thresholdToRem:Key = childToDeleteFrom.thresholds[0];
+      let dataToRem:Data = childToDeleteFrom.datas[0];
 
-      this.children[index + 1]._delete_wrapper(thresholdToRem, indexToRem);
+      childToDeleteFrom._delete_wrapper(thresholdToRem, 0);
 
       this.thresholds[index] = thresholdToRem;
       this.datas[index] = dataToRem;
@@ -784,65 +791,26 @@ function deleteTest001(){
 }
 function deleteTest002(){
   let cur:BNode = new BNode(undefined, 5);
+  let leap = 5;
+  let max = 1000;
+  for (let j = 0; j < leap; j++){
+    for (let i = j; i <= max; i += leap){
+      cur.insert_child(i ,"hi");
+    }
+  }
 
-  for (let i = 0; i <= 1000; i += 5){
-    cur.insert_child(i ,"hi");
-  }
-  for (let i = 1; i <= 1000; i += 5){
-    cur.insert_child(i ,"hi");
-  }
-  for (let i = 2; i <= 1000; i += 5){
-    cur.insert_child(i ,"hi");
-  }
-  for (let i = 3; i <= 1000; i += 5){
-    cur.insert_child(i ,"hi");
-  }
-  for (let i = 4; i <= 1000; i += 5){
-    cur.insert_child(i ,"hi");
-  }
 
   cur.validate_tree();
-
-  for (let i = 0; i <= 1000; i += 5){
-    console.log("Deleting " + i);
-    root.print_tree();
-    if(root.delete(i) !== true){
-      throw new Error("Deletion didn't delete");
+  for (let j = 0; j < leap; j++){
+    for (let i = j; i <= max; i += leap){
+      console.log("Deleting " + i);
+      if(root.delete(i) !== true){
+        cur.print_tree();
+        throw new Error("Deletion didn't delete");
+      }
+      cur.print_tree();
+      root.validate_tree();
     }
-    // cur.print_tree();
-    root.validate_tree();
-  }
-  for (let i = 1; i <= 1000; i += 5){
-    console.log("Deleting " + i);
-    if(root.delete(i) !== true){
-      throw new Error("Deletion didn't delete");
-    }
-    // cur.print_tree();
-    root.validate_tree();
-  }
-  for (let i = 2; i <= 1000; i += 5){
-    console.log("Deleting " + i);
-    if(root.delete(i) !== true){
-      throw new Error("Deletion didn't delete");
-    }
-    // cur.print_tree();
-    root.validate_tree();
-  }
-  for (let i = 3; i <= 1000; i += 5){
-    console.log("Deleting " + i);
-    if(root.delete(i) !== true){
-      throw new Error("Deletion didn't delete");
-    }
-    // cur.print_tree();
-    root.validate_tree();
-  }
-  for (let i = 4; i <= 1000; i += 5){
-    console.log("Deleting " + i);
-    if(root.delete(i) !== true){
-      throw new Error("Deletion didn't delete");
-    }
-    // cur.print_tree();
-    root.validate_tree();
   }
 
   console.log("All Good");

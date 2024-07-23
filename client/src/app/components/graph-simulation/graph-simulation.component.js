@@ -314,10 +314,14 @@ var BNode = /** @class */ (function () {
         //Case 2.b: Rotation
         //Case 2.ba: Left child has more entries
         if (leftChild.thresholds.length > rightChild.thresholds.length) {
-            var indexToRem = leftChild.thresholds.length - 1;
-            var thresholdToRem = leftChild.thresholds[indexToRem];
-            var dataToRem = leftChild.datas[indexToRem];
-            this.children[index]._delete_wrapper(thresholdToRem, indexToRem);
+            var childToDeleteFrom = leftChild;
+            while (childToDeleteFrom.children.length !== 0) {
+                childToDeleteFrom = childToDeleteFrom.children[childToDeleteFrom.children.length - 1];
+            }
+            var indexToRem = childToDeleteFrom.thresholds.length - 1;
+            var thresholdToRem = childToDeleteFrom.thresholds[indexToRem];
+            var dataToRem = childToDeleteFrom.datas[indexToRem];
+            childToDeleteFrom._delete_wrapper(thresholdToRem, indexToRem);
             this.thresholds[index] = thresholdToRem;
             this.datas[index] = dataToRem;
             if (this.datas.length < this.maxDegree / 2) {
@@ -330,10 +334,13 @@ var BNode = /** @class */ (function () {
         }
         //Case 2.bb: Right child has more (or equal) entries
         else {
-            var indexToRem = rightChild.thresholds.length - 1;
-            var thresholdToRem = rightChild.thresholds[indexToRem];
-            var dataToRem = rightChild.datas[indexToRem];
-            this.children[index + 1]._delete_wrapper(thresholdToRem, indexToRem);
+            var childToDeleteFrom = rightChild;
+            while (childToDeleteFrom.children.length !== 0) {
+                childToDeleteFrom = childToDeleteFrom.children[0];
+            }
+            var thresholdToRem = childToDeleteFrom.thresholds[0];
+            var dataToRem = childToDeleteFrom.datas[0];
+            childToDeleteFrom._delete_wrapper(thresholdToRem, 0);
             this.thresholds[index] = thresholdToRem;
             this.datas[index] = dataToRem;
             if (this.datas.length < this.maxDegree / 2) {
@@ -720,62 +727,24 @@ function deleteTest001() {
 }
 function deleteTest002() {
     var cur = new BNode(undefined, 5);
-    for (var i = 0; i <= 1000; i += 5) {
-        cur.insert_child(i, "hi");
-    }
-    for (var i = 1; i <= 1000; i += 5) {
-        cur.insert_child(i, "hi");
-    }
-    for (var i = 2; i <= 1000; i += 5) {
-        cur.insert_child(i, "hi");
-    }
-    for (var i = 3; i <= 1000; i += 5) {
-        cur.insert_child(i, "hi");
-    }
-    for (var i = 4; i <= 1000; i += 5) {
-        cur.insert_child(i, "hi");
+    var leap = 5;
+    var max = 1000;
+    for (var j = 0; j < leap; j++) {
+        for (var i = j; i <= max; i += leap) {
+            cur.insert_child(i, "hi");
+        }
     }
     cur.validate_tree();
-    for (var i = 0; i <= 1000; i += 5) {
-        console.log("Deleting " + i);
-        root.print_tree();
-        if (root.delete(i) !== true) {
-            throw new Error("Deletion didn't delete");
+    for (var j = 0; j < leap; j++) {
+        for (var i = j; i <= max; i += leap) {
+            console.log("Deleting " + i);
+            if (root.delete(i) !== true) {
+                cur.print_tree();
+                throw new Error("Deletion didn't delete");
+            }
+            cur.print_tree();
+            root.validate_tree();
         }
-        // cur.print_tree();
-        root.validate_tree();
-    }
-    for (var i = 1; i <= 1000; i += 5) {
-        console.log("Deleting " + i);
-        if (root.delete(i) !== true) {
-            throw new Error("Deletion didn't delete");
-        }
-        // cur.print_tree();
-        root.validate_tree();
-    }
-    for (var i = 2; i <= 1000; i += 5) {
-        console.log("Deleting " + i);
-        if (root.delete(i) !== true) {
-            throw new Error("Deletion didn't delete");
-        }
-        // cur.print_tree();
-        root.validate_tree();
-    }
-    for (var i = 3; i <= 1000; i += 5) {
-        console.log("Deleting " + i);
-        if (root.delete(i) !== true) {
-            throw new Error("Deletion didn't delete");
-        }
-        // cur.print_tree();
-        root.validate_tree();
-    }
-    for (var i = 4; i <= 1000; i += 5) {
-        console.log("Deleting " + i);
-        if (root.delete(i) !== true) {
-            throw new Error("Deletion didn't delete");
-        }
-        // cur.print_tree();
-        root.validate_tree();
     }
     console.log("All Good");
 }
@@ -866,4 +835,4 @@ function validationTest004() {
     }
     return true;
 }
-deleteTest001();
+deleteTest002();
