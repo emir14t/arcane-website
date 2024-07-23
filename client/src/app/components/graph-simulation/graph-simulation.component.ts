@@ -15,11 +15,11 @@ type Key = number;
 type Nullable<K> = undefined | K;
 
 let curNumbTrees:number = 0;
-let root:Array<BNode<any>> = [];
+let root:BNode<any>;
 class BNode<Data> {
   //Signals
   parent_changed(newParent:BNode<Data>){
-    root[this.rootIndex] = newParent;
+    root = newParent;
     console.log("Root has changed!");
   }
 
@@ -30,20 +30,14 @@ class BNode<Data> {
   public maxDegree:number = -1;
   private rootIndex:number = -1;
 
-  constructor(parent:Nullable<BNode<Data>>, maxDegree:number, rootIndex?:number){
+  constructor(parent:Nullable<BNode<Data>>, maxDegree:number){
     //Initialization
     if (maxDegree < 2){throw new Error("Disallowed initialization");}
 
     this.parent = parent;
     this.maxDegree = maxDegree;
-
-    if (typeof rootIndex === "undefined"){
-      this.rootIndex = curNumbTrees;
-      curNumbTrees ++;
-      root.push(this);
-    }
-    else{
-      this.rootIndex = rootIndex;
+    if (root === undefined){
+      root = this;
     }
   }
 
@@ -179,7 +173,7 @@ class BNode<Data> {
   _split_node_wrapper():void{
     //This handles the edge cases before asking parent to split this BNode
     if (typeof this.parent === "undefined"){
-      let tmpParent:BNode<Data> = new BNode(undefined, this.maxDegree, this.rootIndex);
+      let tmpParent:BNode<Data> = new BNode(undefined, this.maxDegree);
       tmpParent.children.push(this);
       this.parent = tmpParent;
       this.parent_changed(tmpParent);
@@ -190,7 +184,7 @@ class BNode<Data> {
   }
   _split_node(childBNode:BNode<Data>):void{
     //Assuming that childBNode.parent === this
-    let newBNode:BNode<Data> = new BNode<Data>(this, this.maxDegree, this.rootIndex);
+    let newBNode:BNode<Data> = new BNode<Data>(this, this.maxDegree);
     let sizePartition1:number = Math.floor(childBNode.thresholds.length/2);
     let keyToPromote:Key = childBNode.thresholds[sizePartition1];
     let dataToPromote:Data = childBNode.datas[sizePartition1];
@@ -699,10 +693,14 @@ class BNode<Data> {
 }
 
 
-function insertionTests(){
+function allTests(){
   insertionTest001();
   insertionTest002();
   insertionTest003();
+  searchTest001();
+  deleteTest001();
+  deleteTest002();
+  deleteTest003();
 
   console.log("Works");
 }
@@ -775,8 +773,6 @@ function searchTest001(){
       throw new Error("Problem with the search");
     }
   }
-
-  console.log("Works");
 }
 
 function deleteTest001(){
@@ -786,15 +782,15 @@ function deleteTest001(){
     cur.insert_child(i ,["hi"]);
   }
 
-  cur.print_tree();
+  // cur.print_tree();
   cur.validate_tree();
 
   for (let i = 0; i <= 1000; i++){
-    if(root[0].delete(i) !== true){
+    if(root.delete(i) !== true){
       throw new Error("Deletion didn't delete");
     }
     // root.print_tree();
-    root[0].validate_tree();
+    root.validate_tree();
   }
 }
 function deleteTest002(){
@@ -811,16 +807,14 @@ function deleteTest002(){
   for (let j = 0; j < leap; j++){
     for (let i = j; i <= max; i += leap){
       // console.log("Deleting " + i);
-      if(root[0].delete(i) !== true){
+      if(root.delete(i) !== true){
         cur.print_tree();
         throw new Error("Deletion didn't delete");
       }
       // cur.print_tree();
-      root[0].validate_tree();
+      root.validate_tree();
     }
   }
-
-  console.log("All Good");
 }
 function deleteTest003(){
   let cur:BNode<Array<string>> = new BNode(undefined, 5);
@@ -836,33 +830,31 @@ function deleteTest003(){
   for (let j = 0; j < leap; j++){
     for (let i = j; i <= max; i += leap){
       // console.log("Deleting " + i);
-      if(root[0].delete(i) !== true){
-        root[0].print_tree();
+      if(root.delete(i) !== true){
+        root.print_tree();
         throw new Error("Deletion didn't delete");
       }
       // cur.print_tree();
-      root[0].validate_tree();
+      root.validate_tree();
     }
   }
 
   for (let j = 0; j < leap; j++){
     for (let i = j; i <= max; i += leap){
-      root[0].insert_child(i ,["hi"]);
+      root.insert_child(i ,["hi"]);
     }
     for (let i = j; i <= max; i += leap){
       // console.log("Deleting " + i);
-      if(root[0].delete(i) !== true){
-        root[0].print_tree();
+      if(root.delete(i) !== true){
+        root.print_tree();
         throw new Error("Deletion didn't delete");
       }
       // root.print_tree();
-      root[0].validate_tree();
+      root.validate_tree();
     }
   }
-
-  console.log("All Good");
 }
 
 
 
-deleteTest003();
+allTests();

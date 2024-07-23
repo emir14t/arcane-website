@@ -11,9 +11,9 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
     return to.concat(ar || Array.prototype.slice.call(from));
 };
 var curNumbTrees = 0;
-var root = [];
+var root;
 var BNode = /** @class */ (function () {
-    function BNode(parent, maxDegree, rootIndex) {
+    function BNode(parent, maxDegree) {
         this.children = [];
         this.thresholds = new Array();
         this.datas = new Array();
@@ -25,18 +25,13 @@ var BNode = /** @class */ (function () {
         }
         this.parent = parent;
         this.maxDegree = maxDegree;
-        if (typeof rootIndex === "undefined") {
-            this.rootIndex = curNumbTrees;
-            curNumbTrees++;
-            root.push(this);
-        }
-        else {
-            this.rootIndex = rootIndex;
+        if (root === undefined) {
+            root = this;
         }
     }
     //Signals
     BNode.prototype.parent_changed = function (newParent) {
-        root[this.rootIndex] = newParent;
+        root = newParent;
         console.log("Root has changed!");
     };
     // Search algorithm
@@ -164,7 +159,7 @@ var BNode = /** @class */ (function () {
     BNode.prototype._split_node_wrapper = function () {
         //This handles the edge cases before asking parent to split this BNode
         if (typeof this.parent === "undefined") {
-            var tmpParent = new BNode(undefined, this.maxDegree, this.rootIndex);
+            var tmpParent = new BNode(undefined, this.maxDegree);
             tmpParent.children.push(this);
             this.parent = tmpParent;
             this.parent_changed(tmpParent);
@@ -174,7 +169,7 @@ var BNode = /** @class */ (function () {
     };
     BNode.prototype._split_node = function (childBNode) {
         //Assuming that childBNode.parent === this
-        var newBNode = new BNode(this, this.maxDegree, this.rootIndex);
+        var newBNode = new BNode(this, this.maxDegree);
         var sizePartition1 = Math.floor(childBNode.thresholds.length / 2);
         var keyToPromote = childBNode.thresholds[sizePartition1];
         var dataToPromote = childBNode.datas[sizePartition1];
@@ -650,10 +645,14 @@ var BNode = /** @class */ (function () {
     };
     return BNode;
 }());
-function insertionTests() {
+function allTests() {
     insertionTest001();
     insertionTest002();
     insertionTest003();
+    searchTest001();
+    deleteTest001();
+    deleteTest002();
+    deleteTest003();
     console.log("Works");
 }
 function insertionTest001() {
@@ -716,21 +715,20 @@ function searchTest001() {
             throw new Error("Problem with the search");
         }
     }
-    console.log("Works");
 }
 function deleteTest001() {
     var cur = new BNode(undefined, 5);
     for (var i = 0; i <= 1000; i++) {
         cur.insert_child(i, ["hi"]);
     }
-    cur.print_tree();
+    // cur.print_tree();
     cur.validate_tree();
     for (var i = 0; i <= 1000; i++) {
-        if (root[0].delete(i) !== true) {
+        if (root.delete(i) !== true) {
             throw new Error("Deletion didn't delete");
         }
         // root.print_tree();
-        root[0].validate_tree();
+        root.validate_tree();
     }
 }
 function deleteTest002() {
@@ -746,15 +744,14 @@ function deleteTest002() {
     for (var j = 0; j < leap; j++) {
         for (var i = j; i <= max; i += leap) {
             // console.log("Deleting " + i);
-            if (root[0].delete(i) !== true) {
+            if (root.delete(i) !== true) {
                 cur.print_tree();
                 throw new Error("Deletion didn't delete");
             }
             // cur.print_tree();
-            root[0].validate_tree();
+            root.validate_tree();
         }
     }
-    console.log("All Good");
 }
 function deleteTest003() {
     var cur = new BNode(undefined, 5);
@@ -769,28 +766,27 @@ function deleteTest003() {
     for (var j = 0; j < leap; j++) {
         for (var i = j; i <= max; i += leap) {
             // console.log("Deleting " + i);
-            if (root[0].delete(i) !== true) {
-                root[0].print_tree();
+            if (root.delete(i) !== true) {
+                root.print_tree();
                 throw new Error("Deletion didn't delete");
             }
             // cur.print_tree();
-            root[0].validate_tree();
+            root.validate_tree();
         }
     }
     for (var j = 0; j < leap; j++) {
         for (var i = j; i <= max; i += leap) {
-            root[0].insert_child(i, ["hi"]);
+            root.insert_child(i, ["hi"]);
         }
         for (var i = j; i <= max; i += leap) {
             // console.log("Deleting " + i);
-            if (root[0].delete(i) !== true) {
-                root[0].print_tree();
+            if (root.delete(i) !== true) {
+                root.print_tree();
                 throw new Error("Deletion didn't delete");
             }
             // root.print_tree();
-            root[0].validate_tree();
+            root.validate_tree();
         }
     }
-    console.log("All Good");
 }
-deleteTest003();
+allTests();
