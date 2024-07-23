@@ -1,8 +1,6 @@
 import { NgModule } from '@angular/core';
 import { BrowserModule } from '@angular/platform-browser';
 import { FormsModule } from '@angular/forms'; // Import FormsModule
-
-
 import { AppRoutingModule } from './modules/app-routing.module';
 import { AppComponent } from './pages/app/app.component';
 import { LandingPageComponent } from './pages/landing-page/landing-page/landing-page.component';
@@ -12,7 +10,6 @@ import { AboutPageComponent } from './pages/about-page/about-page/about-page.com
 import { SolutionsPageComponent } from './pages/solutions-page/solutions-page/solutions-page.component';
 import { ContactPageComponent } from './pages/contact-page/contact-page/contact-page.component'
 import { TecPageComponent } from './pages/tec-page/tec-page/tec-page.component';
-import { GraphSimulationComponent } from './components/graph-simulation/graph-simulation.component';
 import { GraphComponent } from './components/graph/graph.component';
 
 @NgModule({
@@ -25,8 +22,7 @@ import { GraphComponent } from './components/graph/graph.component';
     SolutionsPageComponent,
     ContactPageComponent,
     TecPageComponent,
-    GraphSimulationComponent
-    GraphComponent
+    GraphComponent,
   ],
   imports: [
     BrowserModule,

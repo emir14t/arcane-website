@@ -1,29 +1,13 @@
-// import { Component } from '@angular/core';
 
-// @Component({
-//   selector: 'app-graph-simulation',
-//   templateUrl: './graph-simulation.component.html',
-//   styleUrls: ['./graph-simulation.component.scss']
-// })
-// export class GraphSimulationComponent {
+import { Node } from "src/app/interface/interface";
 
-// }
 type Key = number;
 type Nullable<K> = undefined | K;
 
 
 let root:BNode<any>;
 
-export interface Node{
-  id:number,
-  value:string,
-  depth:number,
-  breadth:number,
-  parent:number | null,
-  childs:number[],
-}
-
-class BNode<Data> {
+export class BNode<Data> {
   //Signals
   parent_changed(newParent:BNode<Data>){
     root = newParent;
@@ -699,7 +683,7 @@ class BNode<Data> {
   }
 }
 
-function bnode_tree_to_node_map(root:BNode<any>):Map<number, Node>{
+export function bnode_tree_to_node_map(root:BNode<any>):Map<number, Node>{
   let queue1:Array<BNode<any>> = [root];
   let queue2:Array<BNode<any>> = [];
   let turnstile = true;
@@ -758,7 +742,7 @@ function bnode_tree_to_node_map(root:BNode<any>):Map<number, Node>{
 }
 
 
-class Testing{
+export class Testing{
   allTests(){
     this.insertionTest001();
     this.insertionTest002();
@@ -935,5 +919,5 @@ class Testing{
   }
 }
 
-let t = new Testing();
-t.test_bnode_tree_to_node_map();
+// let t = new Testing();
+// t.test_bnode_tree_to_node_map();

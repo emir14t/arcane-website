@@ -2,7 +2,7 @@ import { Component, AfterViewInit, OnInit } from '@angular/core';
 import { Chart, registerables } from 'chart.js';
 import { EdgeLine, GraphController } from 'chartjs-chart-graph';
 import { Node } from 'src/app/interface/interface';
-import * as nodeData from 'src/app/sample-data/test-graph.json';
+// import * as nodeData from 'src/app/sample-data/test-graph.json';
 import opacity from 'hex-color-opacity';
 
 Chart.register(...registerables, GraphController, EdgeLine);
@@ -20,7 +20,8 @@ export class GraphComponent implements OnInit, AfterViewInit{
   constructor() { }
 
   ngOnInit() : void {
-    this.loadSampleData();
+    // this.loadSampleData();
+    return;
   }
 
   ngAfterViewInit() : void {
@@ -48,13 +49,13 @@ export class GraphComponent implements OnInit, AfterViewInit{
     });
   }
 
-  loadSampleData(): void {
-    const dataset = nodeData;
-    const data = dataset.dataset as Node[];
-    data.forEach((node: Node) => {
-      this.nodes.set(node.id, node);
-    });
-  }
+  // loadSampleData(): void {
+  //   const dataset = nodeData;
+  //   const data = dataset.dataset as Node[];
+  //   data.forEach((node: Node) => {
+  //     this.nodes.set(node.id, node);
+  //   });
+  // }
 
   createEdges(): { source: number, target: number }[] {
 
