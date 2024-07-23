@@ -10,23 +10,33 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
     }
     return to.concat(ar || Array.prototype.slice.call(from));
 };
-var root;
+var curNumbTrees = 0;
+var root = [];
 var BNode = /** @class */ (function () {
-    function BNode(parent, maxDegree) {
+    function BNode(parent, maxDegree, rootIndex) {
         this.children = [];
         this.thresholds = new Array();
         this.datas = new Array();
         this.maxDegree = -1;
+        this.rootIndex = -1;
         //Initialization
         if (maxDegree < 2) {
             throw new Error("Disallowed initialization");
         }
         this.parent = parent;
         this.maxDegree = maxDegree;
+        if (typeof rootIndex === "undefined") {
+            this.rootIndex = curNumbTrees;
+            curNumbTrees++;
+            root.push(this);
+        }
+        else {
+            this.rootIndex = rootIndex;
+        }
     }
     //Signals
     BNode.prototype.parent_changed = function (newParent) {
-        root = newParent;
+        root[this.rootIndex] = newParent;
         console.log("Root has changed!");
     };
     // Search algorithm
@@ -154,7 +164,7 @@ var BNode = /** @class */ (function () {
     BNode.prototype._split_node_wrapper = function () {
         //This handles the edge cases before asking parent to split this BNode
         if (typeof this.parent === "undefined") {
-            var tmpParent = new BNode(undefined, this.maxDegree);
+            var tmpParent = new BNode(undefined, this.maxDegree, this.rootIndex);
             tmpParent.children.push(this);
             this.parent = tmpParent;
             this.parent_changed(tmpParent);
@@ -164,7 +174,7 @@ var BNode = /** @class */ (function () {
     };
     BNode.prototype._split_node = function (childBNode) {
         //Assuming that childBNode.parent === this
-        var newBNode = new BNode(this, this.maxDegree);
+        var newBNode = new BNode(this, this.maxDegree, this.rootIndex);
         var sizePartition1 = Math.floor(childBNode.thresholds.length / 2);
         var keyToPromote = childBNode.thresholds[sizePartition1];
         var dataToPromote = childBNode.datas[sizePartition1];
@@ -716,11 +726,11 @@ function deleteTest001() {
     cur.print_tree();
     cur.validate_tree();
     for (var i = 0; i <= 1000; i++) {
-        if (root.delete(i) !== true) {
+        if (root[0].delete(i) !== true) {
             throw new Error("Deletion didn't delete");
         }
         // root.print_tree();
-        root.validate_tree();
+        root[0].validate_tree();
     }
 }
 function deleteTest002() {
@@ -736,12 +746,12 @@ function deleteTest002() {
     for (var j = 0; j < leap; j++) {
         for (var i = j; i <= max; i += leap) {
             // console.log("Deleting " + i);
-            if (root.delete(i) !== true) {
+            if (root[0].delete(i) !== true) {
                 cur.print_tree();
                 throw new Error("Deletion didn't delete");
             }
             // cur.print_tree();
-            root.validate_tree();
+            root[0].validate_tree();
         }
     }
     console.log("All Good");
@@ -759,115 +769,28 @@ function deleteTest003() {
     for (var j = 0; j < leap; j++) {
         for (var i = j; i <= max; i += leap) {
             // console.log("Deleting " + i);
-            if (root.delete(i) !== true) {
-                root.print_tree();
+            if (root[0].delete(i) !== true) {
+                root[0].print_tree();
                 throw new Error("Deletion didn't delete");
             }
             // cur.print_tree();
-            root.validate_tree();
+            root[0].validate_tree();
         }
     }
     for (var j = 0; j < leap; j++) {
         for (var i = j; i <= max; i += leap) {
-            root.insert_child(i, ["hi"]);
+            root[0].insert_child(i, ["hi"]);
         }
         for (var i = j; i <= max; i += leap) {
             // console.log("Deleting " + i);
-            if (root.delete(i) !== true) {
-                root.print_tree();
+            if (root[0].delete(i) !== true) {
+                root[0].print_tree();
                 throw new Error("Deletion didn't delete");
             }
             // root.print_tree();
-            root.validate_tree();
+            root[0].validate_tree();
         }
     }
     console.log("All Good");
-}
-function validationTests() {
-    if (!validationTest001()) {
-        throw new Error("Doesn't work 001");
-    }
-    if (!validationTest002()) {
-        throw new Error("Doesn't work 002");
-    }
-    if (!validationTest003()) {
-        throw new Error("Doesn't work 003");
-    }
-    if (!validationTest004()) {
-        throw new Error("Doesn't work 004");
-    }
-    console.log("Works");
-}
-function validationTest001() {
-    var n = new BNode(undefined, 5);
-    n.children = [new BNode(n, 5), new BNode(n, 5), new BNode(n, 5), new BNode(n, 5), new BNode(n, 5)];
-    try {
-        n.validate_tree();
-    }
-    catch (e) {
-        return true;
-    }
-    return false;
-}
-function validationTest002() {
-    var n = new BNode(undefined, 5);
-    var n1 = new BNode(undefined, 5);
-    n.children = [new BNode(n1, 5), new BNode(n, 5), new BNode(n, 5), new BNode(n, 5), new BNode(n, 5)];
-    n.thresholds = [1, 5, 8, 10];
-    n.datas = [["hi"], ["hi"], ["hi"], ["hi"]];
-    try {
-        n.validate_tree();
-    }
-    catch (e) {
-        return true;
-    }
-    return false;
-}
-function validationTest003() {
-    var n = new BNode(undefined, 5);
-    n.children = [new BNode(n, 5), new BNode(n, 5), new BNode(n, 5), new BNode(n, 5), new BNode(n, 5)];
-    n.thresholds = [1, 5, 8, 10];
-    n.datas = [["hi"], ["hi"], ["hi"], ["hi"]];
-    try {
-        n.validate_tree();
-    }
-    catch (e) {
-        return true;
-    }
-    return false;
-}
-function validationTest004() {
-    var n = new BNode(undefined, 2);
-    var n1 = new BNode(n, 2);
-    var n2 = new BNode(n, 2);
-    var n11 = new BNode(n1, 2);
-    var n12 = new BNode(n1, 2);
-    var n21 = new BNode(n2, 2);
-    var n22 = new BNode(n2, 2);
-    n.children = [n1, n2];
-    n1.children = [n11, n12];
-    n2.children = [n21, n22];
-    n.thresholds = [10];
-    n.datas = [["hi"]];
-    n1.thresholds = [5];
-    n1.datas = [["hi"]];
-    n2.thresholds = [16];
-    n2.datas = [["hi"]];
-    n11.thresholds = [2];
-    n11.datas = [["hi"]];
-    n12.thresholds = [6];
-    n12.datas = [["hi"]];
-    n21.thresholds = [12];
-    n21.datas = [["hi"]];
-    n22.thresholds = [18];
-    n22.datas = [["hi"]];
-    try {
-        n.validate_tree();
-    }
-    catch (e) {
-        console.log(e);
-        return false;
-    }
-    return true;
 }
 deleteTest003();

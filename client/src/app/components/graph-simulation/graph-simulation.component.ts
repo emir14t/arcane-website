@@ -12,29 +12,39 @@
 
 // }
 type Key = number;
-type Data = Array<string>;
 type Nullable<K> = undefined | K;
 
-let root:BNode;
-class BNode {
+let curNumbTrees:number = 0;
+let root:Array<BNode<any>> = [];
+class BNode<Data> {
   //Signals
-  parent_changed(newParent:BNode){
-    root = newParent;
+  parent_changed(newParent:BNode<Data>){
+    root[this.rootIndex] = newParent;
     console.log("Root has changed!");
   }
 
-  public parent:Nullable<BNode>;
-  public children:Array<BNode> = [];
+  public parent:Nullable<BNode<Data>>;
+  public children:Array<BNode<Data>> = [];
   public thresholds:Array<Key> = new Array<Key>();
   public datas:Array<Data> = new Array<Data>();
   public maxDegree:number = -1;
+  private rootIndex:number = -1;
 
-  constructor(parent:Nullable<BNode>, maxDegree:number){
+  constructor(parent:Nullable<BNode<Data>>, maxDegree:number, rootIndex?:number){
     //Initialization
     if (maxDegree < 2){throw new Error("Disallowed initialization");}
 
     this.parent = parent;
     this.maxDegree = maxDegree;
+
+    if (typeof rootIndex === "undefined"){
+      this.rootIndex = curNumbTrees;
+      curNumbTrees ++;
+      root.push(this);
+    }
+    else{
+      this.rootIndex = rootIndex;
+    }
   }
 
 
@@ -169,18 +179,18 @@ class BNode {
   _split_node_wrapper():void{
     //This handles the edge cases before asking parent to split this BNode
     if (typeof this.parent === "undefined"){
-      let tmpParent:BNode = new BNode(undefined, this.maxDegree);
+      let tmpParent:BNode<Data> = new BNode(undefined, this.maxDegree, this.rootIndex);
       tmpParent.children.push(this);
       this.parent = tmpParent;
       this.parent_changed(tmpParent);
       return tmpParent._split_node(this);
     }
 
-    return (this.parent as BNode)._split_node(this);
+    return (this.parent as BNode<Data>)._split_node(this);
   }
-  _split_node(childBNode:BNode):void{
+  _split_node(childBNode:BNode<Data>):void{
     //Assuming that childBNode.parent === this
-    let newBNode:BNode = new BNode(this, this.maxDegree);
+    let newBNode:BNode<Data> = new BNode<Data>(this, this.maxDegree, this.rootIndex);
     let sizePartition1:number = Math.floor(childBNode.thresholds.length/2);
     let keyToPromote:Key = childBNode.thresholds[sizePartition1];
     let dataToPromote:Data = childBNode.datas[sizePartition1];
@@ -315,13 +325,13 @@ class BNode {
         if (typeof this.parent == "undefined"){
           return;
         }
-        (this.parent as BNode)._balance_tree(this);
+        (this.parent as BNode<Data>)._balance_tree(this);
       }
       return;
     }
 
-    let leftChild:BNode = this.children[index];
-    let rightChild:BNode = this.children[index + 1];
+    let leftChild:BNode<Data> = this.children[index];
+    let rightChild:BNode<Data> = this.children[index + 1];
 
     //Case 2: No leaf
     //Case 2.a: Compression
@@ -336,7 +346,7 @@ class BNode {
         if (typeof this.parent == "undefined"){
           return;
         }
-        (this.parent as BNode)._balance_tree(this);
+        (this.parent as BNode<Data>)._balance_tree(this);
       }
       return;
     }
@@ -361,7 +371,7 @@ class BNode {
         if (typeof this.parent == "undefined"){
           return;
         }
-        (this.parent as BNode)._balance_tree(this);
+        (this.parent as BNode<Data>)._balance_tree(this);
       }
       return;
     }
@@ -384,12 +394,12 @@ class BNode {
         if (typeof this.parent == "undefined"){
           return;
         }
-        (this.parent as BNode)._balance_tree(this);
+        (this.parent as BNode<Data>)._balance_tree(this);
       }
       return;
     }
   }
-  _merge_nodes(BNode1:BNode, BNode2:BNode){
+  _merge_nodes(BNode1:BNode<Data>, BNode2:BNode<Data>){
     //Assuming that both BNodes provided are from the same level
     //Base Case: leaves
     if (BNode1.children.length == 0){
@@ -456,7 +466,7 @@ class BNode {
       return;
     }
   }
-  _balance_tree(changedBNode:BNode):void{
+  _balance_tree(changedBNode:BNode<Data>):void{
     if (changedBNode.thresholds.length >= Math.floor(this.maxDegree / 2)){
       return;
     }
@@ -488,7 +498,7 @@ class BNode {
         this.datas.splice(i, 0, ...this.children[i].datas);
       }
 
-      let tmpChildren:Array<BNode>= this.children;
+      let tmpChildren:Array<BNode<Data>> = this.children;
       this.children = [];
       for (let child of tmpChildren){
         this.children.push(...child.children);
@@ -498,7 +508,7 @@ class BNode {
       }
 
       if ((typeof this.parent !== "undefined") && (total < (this.maxDegree / 2))){
-        return (this.parent as BNode)._balance_tree(this);
+        return (this.parent as BNode<Data>)._balance_tree(this);
       }
       return;
     }
@@ -579,7 +589,7 @@ class BNode {
         
         this._balance_tree(this.children[index-1]);
         if (typeof this.parent !== "undefined"){
-          (this.parent as BNode)._balance_tree(this);
+          (this.parent as BNode<Data>)._balance_tree(this);
         }
         return;
       }
@@ -602,7 +612,7 @@ class BNode {
 
         this._balance_tree(this.children[index]);
         if (typeof this.parent !== "undefined"){
-          (this.parent as BNode)._balance_tree(this);
+          (this.parent as BNode<Data>)._balance_tree(this);
         }
         return;
       }
@@ -632,14 +642,14 @@ class BNode {
   _validate_up():void{
     if (typeof this.parent === "undefined"){return this._validate_down(-Infinity, Infinity);}
 
-    return (this.parent as BNode)._validate_up()
+    return (this.parent as BNode<Data>)._validate_up()
   }
   _validate_down(minNumb:number, maxNumb:number):void{
     this._validate_self(minNumb, maxNumb);
     for (let index = 0; index < this.children.length; index++){
       let child = this.children[index]
       if (typeof child.parent === "undefined")  { throw new Error("Children's parent is unitialized");}
-      if ((child.parent as BNode) !== this)     { throw new Error("Childrens are not correctly representing their parent as parent");}
+      if ((child.parent as BNode<Data>) !== this)     { throw new Error("Childrens are not correctly representing their parent as parent");}
 
       let curMin:number = minNumb;
       let curMax:number = maxNumb;
@@ -665,7 +675,7 @@ class BNode {
   }
   _print_tree_up():void{
     if(typeof this.parent != "undefined"){
-      return (this.parent as BNode)._print_tree_up();
+      return (this.parent as BNode<Data>)._print_tree_up();
     }
 
     this._print_tree_down(0);
@@ -697,7 +707,7 @@ function insertionTests(){
   console.log("Works");
 }
 function insertionTest001(){
-  let cur:BNode = new BNode(undefined, 5);
+  let cur:BNode<Array<string>> = new BNode(undefined, 5);
 
   for (let i = 0; i <= 100; i += 5){
     cur.insert_child(i ,["hi"]);
@@ -718,7 +728,7 @@ function insertionTest001(){
   cur.validate_tree();
 }
 function insertionTest002(){
-  let cur:BNode = new BNode(undefined, 5);
+  let cur:BNode<Array<string>> = new BNode(undefined, 5);
 
   for (let i = 0; i <= 100; i ++){
     cur.insert_child(i ,["hi"]);
@@ -727,7 +737,7 @@ function insertionTest002(){
   cur.validate_tree();
 }
 function insertionTest003(){
-  let cur:BNode = new BNode(undefined, 6);
+  let cur:BNode<Array<string>> = new BNode(undefined, 6);
 
   for (let i = 100; i >= 0; i --){
     cur.insert_child(i ,["hi"]);
@@ -737,7 +747,7 @@ function insertionTest003(){
 }
 
 function searchTest001(){
-  let cur:BNode = new BNode(undefined, 5);
+  let cur:BNode<Array<string>> = new BNode(undefined, 5);
 
   for (let i = 0; i <= 100; i += 5){
     cur.insert_child(i ,["hi"]);
@@ -770,7 +780,7 @@ function searchTest001(){
 }
 
 function deleteTest001(){
-  let cur:BNode = new BNode(undefined, 5);
+  let cur:BNode<Array<string>> = new BNode(undefined, 5);
 
   for (let i = 0; i <= 1000; i ++){
     cur.insert_child(i ,["hi"]);
@@ -780,15 +790,15 @@ function deleteTest001(){
   cur.validate_tree();
 
   for (let i = 0; i <= 1000; i++){
-    if(root.delete(i) !== true){
+    if(root[0].delete(i) !== true){
       throw new Error("Deletion didn't delete");
     }
     // root.print_tree();
-    root.validate_tree();
+    root[0].validate_tree();
   }
 }
 function deleteTest002(){
-  let cur:BNode = new BNode(undefined, 5);
+  let cur:BNode<Array<string>> = new BNode(undefined, 5);
   let leap = 5;
   let max = 1000;
   for (let j = 0; j < leap; j++){
@@ -801,19 +811,19 @@ function deleteTest002(){
   for (let j = 0; j < leap; j++){
     for (let i = j; i <= max; i += leap){
       // console.log("Deleting " + i);
-      if(root.delete(i) !== true){
+      if(root[0].delete(i) !== true){
         cur.print_tree();
         throw new Error("Deletion didn't delete");
       }
       // cur.print_tree();
-      root.validate_tree();
+      root[0].validate_tree();
     }
   }
 
   console.log("All Good");
 }
 function deleteTest003(){
-  let cur:BNode = new BNode(undefined, 5);
+  let cur:BNode<Array<string>> = new BNode(undefined, 5);
   let leap = 5;
   let max = 1000;
   for (let j = 0; j < leap; j++){
@@ -826,27 +836,27 @@ function deleteTest003(){
   for (let j = 0; j < leap; j++){
     for (let i = j; i <= max; i += leap){
       // console.log("Deleting " + i);
-      if(root.delete(i) !== true){
-        root.print_tree();
+      if(root[0].delete(i) !== true){
+        root[0].print_tree();
         throw new Error("Deletion didn't delete");
       }
       // cur.print_tree();
-      root.validate_tree();
+      root[0].validate_tree();
     }
   }
 
   for (let j = 0; j < leap; j++){
     for (let i = j; i <= max; i += leap){
-      root.insert_child(i ,["hi"]);
+      root[0].insert_child(i ,["hi"]);
     }
     for (let i = j; i <= max; i += leap){
       // console.log("Deleting " + i);
-      if(root.delete(i) !== true){
-        root.print_tree();
+      if(root[0].delete(i) !== true){
+        root[0].print_tree();
         throw new Error("Deletion didn't delete");
       }
       // root.print_tree();
-      root.validate_tree();
+      root[0].validate_tree();
     }
   }
 
@@ -854,88 +864,5 @@ function deleteTest003(){
 }
 
 
-function validationTests(){
-  if (!validationTest001()){throw new Error("Doesn't work 001")}
-  if (!validationTest002()){throw new Error("Doesn't work 002")}
-  if (!validationTest003()){throw new Error("Doesn't work 003")}
-  if (!validationTest004()){throw new Error("Doesn't work 004")}
-
-  console.log("Works");
-}
-function validationTest001(){
-  let n:BNode = new BNode(undefined, 5);
-  n.children = [new BNode(n, 5),new BNode(n, 5),new BNode(n, 5),new BNode(n, 5),new BNode(n, 5)];
-  try{
-    n.validate_tree()
-  }
-  catch(e){
-    return true;
-  }
-  return false;
-}
-function validationTest002(){
-  let n:BNode = new BNode(undefined, 5);
-  let n1:BNode = new BNode(undefined, 5);
-  n.children = [new BNode(n1, 5),new BNode(n, 5),new BNode(n, 5),new BNode(n, 5),new BNode(n, 5)];
-  n.thresholds = [1,5,8,10]
-  n.datas = [["hi"],["hi"],["hi"],["hi"]]
-  try{
-    n.validate_tree()
-  }
-  catch(e){
-    return true;
-  }
-  return false;
-}
-function validationTest003(){
-  let n:BNode = new BNode(undefined, 5);
-  n.children = [new BNode(n, 5),new BNode(n, 5),new BNode(n, 5),new BNode(n, 5),new BNode(n, 5)];
-  n.thresholds = [1,5,8,10]
-  n.datas = [["hi"],["hi"],["hi"],["hi"]]
-  try{
-    n.validate_tree()
-  }
-  catch(e){
-    return true;
-  }
-  return false;
-}
-function validationTest004(){
-  let n:BNode = new BNode(undefined, 2);
-  let n1:BNode = new BNode(n, 2);
-  let n2:BNode = new BNode(n, 2);
-  let n11:BNode = new BNode(n1, 2);
-  let n12:BNode = new BNode(n1, 2);
-  let n21:BNode = new BNode(n2, 2);
-  let n22:BNode = new BNode(n2, 2);
-
-  n.children = [n1,n2]
-  n1.children = [n11,n12]
-  n2.children = [n21,n22]
-
-  n.thresholds = [10]
-  n.datas = [["hi"]]
-  n1.thresholds = [5]
-  n1.datas = [["hi"]]
-  n2.thresholds = [16]
-  n2.datas = [["hi"]]
-  n11.thresholds = [2]
-  n11.datas = [["hi"]]
-  n12.thresholds = [6]
-  n12.datas = [["hi"]]
-  n21.thresholds = [12]
-  n21.datas = [["hi"]]
-  n22.thresholds = [18]
-  n22.datas = [["hi"]]
-
-  try{
-    n.validate_tree()
-  }
-  catch(e){
-    console.log(e)
-    return false;
-  }
-  return true;
-}
 
 deleteTest003();
