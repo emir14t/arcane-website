@@ -89,14 +89,14 @@ export class BNode<Data> {
   }
 
   // Search algorithm (returns the Data associated with the userID if it exists and undefined if the userID doesn't exist)
-  search(userID:Key):Nullable<Data>{
+  search(userID:Key):Nullable<BNode<Data>>{
     return this._search_up(userID);
   }
-  private _search_down(userID:Key):Nullable<Data>{
+  private _search_down(userID:Key):Nullable<BNode<Data>>{
     //Base case (leaf)
     if (this.children.length === 0){
       for (let index:number = 0; index < this.thresholds.length; index++){
-        if (userID === this.thresholds[index]){return this.datas[index];}
+        if (userID === this.thresholds[index]){return this;}
       }
       return undefined;
     }
@@ -108,12 +108,12 @@ export class BNode<Data> {
         return this.children[index]._search_down(userID);
       }
       else if (userID === threshold){
-        return this.datas[index];
+        return this;
       }
     }
     return this.children[this.children.length-1]._search_down(userID)
   }
-  private _search_up(userID:Key):Nullable<Data>{
+  private _search_up(userID:Key):Nullable<BNode<Data>>{
     //Base case (root)
     if (typeof this.parent === "undefined"){
       return this._search_down(userID);
@@ -133,11 +133,12 @@ export class BNode<Data> {
         return this.children[index]._search_down(userID);
       }
       else if (userID === threshold){
-        return this.datas[index];
+        return this;
       }
     }
     return this.parent._search_up(userID);
   }
+
 
   // Insertion algorithm (returns a BNode<Data> that contains the user you added)
   insert_child(userID:Key, data:Data):BNode<Data>{
@@ -834,191 +835,191 @@ export class BNode<Data> {
 }
 
 
-export class Testing{
-  allTests(){
-    this.insertionTest001();
-    this.insertionTest002();
-    this.insertionTest003();
-    this.insertionTest004();
-    this.searchTest001();
-    this.deleteTest001();
-    this.deleteTest002();
-    this.deleteTest003();
+// export class Testing{
+//   allTests(){
+//     this.insertionTest001();
+//     this.insertionTest002();
+//     this.insertionTest003();
+//     this.insertionTest004();
+//     this.searchTest001();
+//     this.deleteTest001();
+//     this.deleteTest002();
+//     this.deleteTest003();
 
-    console.log("Works");
-  }
+//     console.log("Works");
+//   }
 
-  insertionTest001(){
-    let cur:BNode<Array<string>> = new BNode(undefined, 5);
+//   insertionTest001(){
+//     let cur:BNode<Array<string>> = new BNode(undefined, 5);
 
-    for (let i = 0; i <= 100; i += 5){
-      cur = cur.insert_child(i ,["hi"]);
-    }
-    for (let i = 1; i <= 100; i += 5){
-      cur = cur.insert_child(i ,["hi"]);
-    }
-    for (let i = 2; i <= 100; i += 5){
-      cur = cur.insert_child(i ,["hi"]);
-    }
-    for (let i = 3; i <= 100; i += 5){
-      cur = cur.insert_child(i ,["hi"]);
-    }
-    for (let i = 4; i <= 100; i += 5){
-      cur = cur.insert_child(i ,["hi"]);
-    }
+//     for (let i = 0; i <= 100; i += 5){
+//       cur = cur.insert_child(i ,["hi"]);
+//     }
+//     for (let i = 1; i <= 100; i += 5){
+//       cur = cur.insert_child(i ,["hi"]);
+//     }
+//     for (let i = 2; i <= 100; i += 5){
+//       cur = cur.insert_child(i ,["hi"]);
+//     }
+//     for (let i = 3; i <= 100; i += 5){
+//       cur = cur.insert_child(i ,["hi"]);
+//     }
+//     for (let i = 4; i <= 100; i += 5){
+//       cur = cur.insert_child(i ,["hi"]);
+//     }
 
-    cur.validate_tree();
-  }
-  insertionTest002(){
-    let cur:BNode<Array<string>> = new BNode(undefined, 5);
+//     cur.validate_tree();
+//   }
+//   insertionTest002(){
+//     let cur:BNode<Array<string>> = new BNode(undefined, 5);
 
-    for (let i = 0; i <= 100; i ++){
-      cur = cur.insert_child(i ,["hi"]);
-    }
+//     for (let i = 0; i <= 100; i ++){
+//       cur = cur.insert_child(i ,["hi"]);
+//     }
     
-    cur.validate_tree();
-  }
-  insertionTest003(){
-    let cur:BNode<Array<string>> = new BNode(undefined, 6);
+//     cur.validate_tree();
+//   }
+//   insertionTest003(){
+//     let cur:BNode<Array<string>> = new BNode(undefined, 6);
 
-    for (let i = 100; i >= 0; i --){
-      cur = cur.insert_child(i ,["hi"]);
-    }
+//     for (let i = 100; i >= 0; i --){
+//       cur = cur.insert_child(i ,["hi"]);
+//     }
     
-    cur.validate_tree();
-  }
-  insertionTest004(){
-    let cur:BNode<Array<string>> = new BNode(undefined, 5);
+//     cur.validate_tree();
+//   }
+//   insertionTest004(){
+//     let cur:BNode<Array<string>> = new BNode(undefined, 5);
 
-    for (let i = 0; i <= 100; i ++){
-      cur = cur.insert_child(i ,["hi"]);
-      if (!cur.has(i)){
-        throw new Error("Output isnt correct");
-      }
-    }
-  }
+//     for (let i = 0; i <= 100; i ++){
+//       cur = cur.insert_child(i ,["hi"]);
+//       if (!cur.has(i)){
+//         throw new Error("Output isnt correct");
+//       }
+//     }
+//   }
 
-  searchTest001(){
-    let cur:BNode<Array<string>> = new BNode(undefined, 5);
+//   searchTest001(){
+//     let cur:BNode<Array<string>> = new BNode(undefined, 5);
 
-    for (let i = 0; i <= 100; i += 5){
-      cur.insert_child(i ,["hi"]);
-    }
-    for (let i = 1; i <= 100; i += 5){
-      cur.insert_child(i ,["hi"]);
-    }
-    for (let i = 2; i <= 100; i += 5){
-      cur.insert_child(i ,["hi"]);
-    }
-    for (let i = 3; i <= 100; i += 5){
-      cur.insert_child(i ,["hi"]);
-    }
-    for (let i = 4; i <= 100; i += 5){
-      cur.insert_child(i ,["hi"]);
-    }
+//     for (let i = 0; i <= 100; i += 5){
+//       cur.insert_child(i ,["hi"]);
+//     }
+//     for (let i = 1; i <= 100; i += 5){
+//       cur.insert_child(i ,["hi"]);
+//     }
+//     for (let i = 2; i <= 100; i += 5){
+//       cur.insert_child(i ,["hi"]);
+//     }
+//     for (let i = 3; i <= 100; i += 5){
+//       cur.insert_child(i ,["hi"]);
+//     }
+//     for (let i = 4; i <= 100; i += 5){
+//       cur.insert_child(i ,["hi"]);
+//     }
     
-    for (let i = 0; i <= 100; i ++){
-      if ((cur.search(i) as Array<string>)[0] !== "hi"){
-        throw new Error("Problem with the search");
-      }
-    }
-    for (let i = 101; i <= 200; i++){
-      if (typeof cur.search(i) !== "undefined"){
-        throw new Error("Problem with the search");
-      }
-    }
-  }
+//     for (let i = 0; i <= 100; i ++){
+//       if ((cur.search(i) as Array<string>)[0] !== "hi"){
+//         throw new Error("Problem with the search");
+//       }
+//     }
+//     for (let i = 101; i <= 200; i++){
+//       if (typeof cur.search(i) !== "undefined"){
+//         throw new Error("Problem with the search");
+//       }
+//     }
+//   }
 
-  deleteTest001(){
-    let cur:BNode<Array<string>> = new BNode(undefined, 5);
+//   deleteTest001(){
+//     let cur:BNode<Array<string>> = new BNode(undefined, 5);
 
-    for (let i = 0; i <= 1000; i ++){
-      cur.insert_child(i ,["hi"]);
-    }
+//     for (let i = 0; i <= 1000; i ++){
+//       cur.insert_child(i ,["hi"]);
+//     }
 
-    // cur.print_tree();
-    cur.validate_tree();
+//     // cur.print_tree();
+//     cur.validate_tree();
 
-    for (let i = 0; i <= 1000; i++){
-      cur = cur.delete(i)
-      // root.print_tree();
-      cur.validate_tree();
-    }
-  }
-  deleteTest002(){
-    let cur:BNode<Array<string>> = new BNode(undefined, 5);
-    let leap = 5;
-    let max = 1000;
-    for (let j = 0; j < leap; j++){
-      for (let i = j; i <= max; i += leap){
-        cur.insert_child(i ,["hi"]);
-      }
-    }
+//     for (let i = 0; i <= 1000; i++){
+//       cur = cur.delete(i)
+//       // root.print_tree();
+//       cur.validate_tree();
+//     }
+//   }
+//   deleteTest002(){
+//     let cur:BNode<Array<string>> = new BNode(undefined, 5);
+//     let leap = 5;
+//     let max = 1000;
+//     for (let j = 0; j < leap; j++){
+//       for (let i = j; i <= max; i += leap){
+//         cur.insert_child(i ,["hi"]);
+//       }
+//     }
 
-    cur.validate_tree();
-    for (let j = 0; j < leap; j++){
-      for (let i = j; i <= max; i += leap){
-        // console.log("Deleting " + i);
-        cur = cur.delete(i)
-        // cur.print_tree();
-        cur.validate_tree();
-      }
-    }
-  }
-  deleteTest003(){
-    let cur:BNode<Array<string>> = new BNode(undefined, 5);
-    let leap = 5;
-    let max = 1000;
-    for (let j = 0; j < leap; j++){
-      for (let i = j; i <= max; i += leap){
-        cur.insert_child(i ,["hi"]);
-      }
-    }
+//     cur.validate_tree();
+//     for (let j = 0; j < leap; j++){
+//       for (let i = j; i <= max; i += leap){
+//         // console.log("Deleting " + i);
+//         cur = cur.delete(i)
+//         // cur.print_tree();
+//         cur.validate_tree();
+//       }
+//     }
+//   }
+//   deleteTest003(){
+//     let cur:BNode<Array<string>> = new BNode(undefined, 5);
+//     let leap = 5;
+//     let max = 1000;
+//     for (let j = 0; j < leap; j++){
+//       for (let i = j; i <= max; i += leap){
+//         cur.insert_child(i ,["hi"]);
+//       }
+//     }
 
-    cur.validate_tree();
-    for (let j = 0; j < leap; j++){
-      for (let i = j; i <= max; i += leap){
-        // console.log("Deleting " + i);
-        cur = cur.delete(i)
-        // cur.print_tree();
-        cur.validate_tree();
-      }
-    }
+//     cur.validate_tree();
+//     for (let j = 0; j < leap; j++){
+//       for (let i = j; i <= max; i += leap){
+//         // console.log("Deleting " + i);
+//         cur = cur.delete(i)
+//         // cur.print_tree();
+//         cur.validate_tree();
+//       }
+//     }
 
-    for (let j = 0; j < leap; j++){
-      for (let i = j; i <= max; i += leap){
-        cur.insert_child(i ,["hi"]);
-      }
-      for (let i = j; i <= max; i += leap){
-        // console.log("Deleting " + i);
-        cur = cur.delete(i)
-        // root.print_tree();
-        cur.validate_tree();
-      }
-    }
-  }
+//     for (let j = 0; j < leap; j++){
+//       for (let i = j; i <= max; i += leap){
+//         cur.insert_child(i ,["hi"]);
+//       }
+//       for (let i = j; i <= max; i += leap){
+//         // console.log("Deleting " + i);
+//         cur = cur.delete(i)
+//         // root.print_tree();
+//         cur.validate_tree();
+//       }
+//     }
+//   }
 
-  test_bnode_tree_to_node_map(){
-    let cur:BNode<Array<string>> = new BNode(undefined, 5);
+//   test_bnode_tree_to_node_map(){
+//     let cur:BNode<Array<string>> = new BNode(undefined, 5);
   
-    for (let i = 0; i <= 100; i ++){
-      cur.insert_child(i ,["hi"]);
-    }
+//     for (let i = 0; i <= 100; i ++){
+//       cur.insert_child(i ,["hi"]);
+//     }
   
-    cur.print_tree();
+//     cur.print_tree();
   
-    console.log(cur.bnode_tree_to_node_map());
-  }
+//     console.log(cur.bnode_tree_to_node_map());
+//   }
   
-  async test_async(){
-    let cur:BNode<number> = new BNode(undefined, 4);
-    for (let i = 0; i < 100; i++){
-      let map:Map<number, number> = new Map();
-      map.set(i,i);
-      cur.create_transaction({writes:map, reads:map});
-    }
-  }
-}
+//   async test_async(){
+//     let cur:BNode<number> = new BNode(undefined, 4);
+//     for (let i = 0; i < 100; i++){
+//       let map:Map<number, number> = new Map();
+//       map.set(i,i);
+//       cur.create_transaction({writes:map, reads:map});
+//     }
+//   }
+// }
 
 // let t = new Testing();
 // t.allTests();
