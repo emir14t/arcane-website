@@ -1,11 +1,9 @@
 import { Node,Transaction } from "src/app/interface/interface";
 import { Mutex } from 'async-mutex';
+import { BUBBLE_UP_WAIT_TIME,TRANSACTION_WAIT_TIME } from "src/app/constants"; 
 
 type Key = number;
 type Nullable<K> = undefined | K;
-
-const BUBBLE_UP_WAIT_TIME:number = 5;   // How long(ms) does each node wait for more transactions before bubbleling up
-const TRANSACTION_WAIT_TIME:number = 1; // How long(ms) does each node wait before sending the data to his parent (applies after bubble up wait time)
 
 export class BNode<Data> {
   //Signals
