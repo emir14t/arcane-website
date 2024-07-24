@@ -175,7 +175,7 @@ export class GraphComponent implements OnInit, OnDestroy, AfterViewInit{
               return 'No Label';
             },
             font: {
-              size: 16,
+              size: 12,
               weight: 'bold',
             },
           },
