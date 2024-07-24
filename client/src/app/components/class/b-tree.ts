@@ -1,18 +1,17 @@
 import { Node } from "src/app/interface/interface";
-import {Mutex} from 'async-mutex';
-
+import { Mutex } from 'async-mutex';
 
 type Key = number;
 type Nullable<K> = undefined | K;
-
 type Address = number;
+
 interface Transaction{
   writes:Map<Address, any>,
   reads:Map<Address, any>
 }
 
-const BUBBLE_UP_WAIT_TIME:number = 0;
-const TRANSACTION_WAIT_TIME:number = 1;
+const BUBBLE_UP_WAIT_TIME:number = 5;   // How long(ms) does each node wait for more transactions before bubbleling up
+const TRANSACTION_WAIT_TIME:number = 1; // How long(ms) does each node wait before sending the data to his parent (applies after bubble up wait time)
 
 export class BNode<Data> {
   //Signals
@@ -29,12 +28,14 @@ export class BNode<Data> {
     console.log();
   }
 
+  // Data
   private parent:Nullable<BNode<Data>>;
   private children:Array<BNode<Data>> = [];
   private thresholds:Array<Key> = new Array<Key>();
   private datas:Array<Data> = new Array<Data>();
   private maxDegree:number = -1;
 
+  // Constructor
   constructor(parent:Nullable<BNode<Data>>, maxDegree:number){
     //Initialization
     if (maxDegree < 2){throw new Error("Disallowed initialization");}
@@ -738,7 +739,7 @@ export class BNode<Data> {
     this._print_tree_down(0);
     console.log("");
   }
-  _print_tree_down(cur_level:number):void{
+  private _print_tree_down(cur_level:number):void{
     if(cur_level === 0){
       console.log('// ' + this.thresholds);
     }
