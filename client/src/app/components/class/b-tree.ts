@@ -4,8 +4,7 @@ import { Node } from "src/app/interface/interface";
 type Key = number;
 type Nullable<K> = undefined | K;
 
-
-let root:BNode<any>;
+export let root:BNode<any>;
 
 export class BNode<Data> {
   //Signals
@@ -710,7 +709,7 @@ export function bnode_tree_to_node_map(root:BNode<any>):Map<number, Node>{
         
         let id:number = (helpMap.get(node.thresholds[0]) as number);
         let parent:null|number = typeof node.parent === "undefined" ? null : (helpMap.get(node.parent.thresholds[0]) as number);
-        retMap.set(id, {id:id, value:node.thresholds.toString(), depth:depth, breadth:breadth, parent:parent, childs:children});
+        retMap.set(id, {id:id, value:node.thresholds.toString(), depth:depth, breadth:breadth, parent:parent});
         breadth++;
       }
       queue1 = []
@@ -728,7 +727,7 @@ export function bnode_tree_to_node_map(root:BNode<any>):Map<number, Node>{
         
         let id:number = (helpMap.get(node.thresholds[0]) as number);
         let parent:null|number = typeof node.parent === "undefined" ? null : (helpMap.get(node.parent.thresholds[0]) as number);
-        retMap.set(id, {id:id, value:node.thresholds.toString(), depth:depth, breadth:breadth, parent:parent, childs:children});
+        retMap.set(id, {id:id, value:node.thresholds.toString(), depth:depth, breadth:breadth, parent:parent});
         breadth++;
       }
       queue2 = []

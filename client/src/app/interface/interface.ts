@@ -3,7 +3,5 @@ export interface Node {
     depth : number,
     breadth : number,
     parent : number | null,
-    childs : number[],
-    // neighbors : number[],
     value: any,
 }
