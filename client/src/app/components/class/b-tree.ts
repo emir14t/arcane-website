@@ -5,21 +5,29 @@ import { BUBBLE_UP_WAIT_TIME,TRANSACTION_WAIT_TIME } from "src/app/constants";
 type Key = number;
 type Nullable<K> = undefined | K;
 
+function process_transactions(transactions:Array<Transaction>){
+  console.log("Transaction Arrived");
+  let output:Array<String> = [];
+  for (let i = 0; i < transactions.length; i++){
+    output.push(transactions[i].writes.keys().next().value)
+  }
+  console.log("--->" + output.join(' '));
+  console.log();
+}
+//Use that map that you conveniently have, you fucking shithead to convert nodes to its ID
+function transaction_is_arriving(node:BNode<any>){
+
+}
+function transaction_is_leaving(node:BNode<any>){
+
+}
+
 export class BNode<Data> {
   //Signals
   parent_changed(newParent:BNode<Data>){
     //console.log("Root has changed!");
   }
-  async process_transactions(transactions:Array<Transaction>){
-    console.log("Transaction Arrived");
-    let output:Array<String> = [];
-    for (let i = 0; i < transactions.length; i++){
-      output.push(transactions[i].writes.keys().next().value)
-    }
-    console.log("--->" + output.join(' '));
-    console.log();
-  }
-
+  
   // Data
   private parent:Nullable<BNode<Data>>;
   private children:Array<BNode<Data>> = [];
@@ -44,6 +52,7 @@ export class BNode<Data> {
   }
   // Called whenever a node receives a transaction
   private async _data_collection(transactions:Array<Transaction>):Promise<void>{
+    transaction_is_arriving(this);
     await this.my_lock.acquire();
     try{
       let im_collecting = (this.all_cur_transactions.length === 0);
@@ -58,10 +67,11 @@ export class BNode<Data> {
   }
   // Called whenever a node bubbles up a transaction
   private async _bubble_up(){
+    transaction_is_leaving(this);
     await this.my_lock.acquire();
     try{
       if (typeof this.parent === "undefined"){
-        setTimeout(this.process_transactions.bind(this), TRANSACTION_WAIT_TIME, this.all_cur_transactions);
+        setTimeout(process_transactions.bind(this), TRANSACTION_WAIT_TIME, this.all_cur_transactions);
       }
       else{
         setTimeout((this.parent as BNode<Data>)._data_collection.bind(this), TRANSACTION_WAIT_TIME, this.all_cur_transactions);
