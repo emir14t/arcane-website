@@ -1,5 +1,12 @@
 import { Node } from "src/app/interface/interface";
 import {Mutex} from 'async-mutex';
+// export interface Node {
+//   id : number,
+//   depth : number,
+//   breadth : number,
+//   parent : number | null,
+//   value: any,
+// }
 
 type Key = number;
 type Nullable<K> = undefined | K;
@@ -19,7 +26,7 @@ export class BNode<Data> {
   //Signals
   parent_changed(newParent:BNode<Data>){
     root = newParent;
-    console.log("Root has changed!");
+    // console.log("Root has changed!");
   }
   async process_transactions(transactions:Array<Transaction>){
     console.log("Transaction Arrived");
@@ -137,10 +144,10 @@ export class BNode<Data> {
 
   // Make insert_child() return the node in which he wrote
   // Insertion algorithm
-  insert_child(userID:Key, data:Data):void{
+  insert_child(userID:Key, data:Data):BNode<Data>{
     return this._insert_child_up(userID, data);
   }
-  private _insert_child_down(userID:Key, data:Data):void{
+  private _insert_child_down(userID:Key, data:Data):BNode<Data>{
     //Base case (leaf)
     if (this.children.length === 0){
       return this._add_data_to_node(userID, data);
@@ -158,7 +165,7 @@ export class BNode<Data> {
     }
     return this.children[this.children.length-1]._insert_child_down(userID, data)
   }
-  private _insert_child_up(userID:Key, data:Data):void{
+  private _insert_child_up(userID:Key, data:Data):BNode<Data>{
     //Base case (root)
     if (typeof this.parent === "undefined"){
       return this._insert_child_down(userID, data);
@@ -183,7 +190,7 @@ export class BNode<Data> {
     }
     return this.parent._insert_child_up(userID, data);
   }
-  private _add_data_to_node(userID:Key, data:Data):void{
+  private _add_data_to_node(userID:Key, data:Data):BNode<Data>{
     //Assuming that the userID doesn't exist in the array
     //Add to arrays
     if (this.thresholds.length == 0){
@@ -210,22 +217,26 @@ export class BNode<Data> {
 
     //Check if we have to split
     if (this.thresholds.length > this.maxDegree){
-      return this._split_node_wrapper();
+      if (!this.thresholds.includes(userID)){
+        throw new Error("Threshold doesn't show that we've added the user");
+      }
+      return (this._split_node_wrapper(userID) as BNode<Data>);
     }
+    return this;
   }
-  private _split_node_wrapper():void{
+  private _split_node_wrapper(userID:Key):(BNode<Data>|undefined){
     //This handles the edge cases before asking parent to split this BNode
     if (typeof this.parent === "undefined"){
       let tmpParent:BNode<Data> = new BNode(undefined, this.maxDegree);
       tmpParent.children.push(this);
       this.parent = tmpParent;
       this.parent_changed(tmpParent);
-      return tmpParent._split_node(this);
+      return tmpParent._split_node(userID, this);
     }
 
-    return (this.parent as BNode<Data>)._split_node(this);
+    return (this.parent as BNode<Data>)._split_node(userID, this);
   }
-  private _split_node(childBNode:BNode<Data>):void{
+  private _split_node(userID:Key, childBNode:BNode<Data>):(BNode<Data>|undefined){
     //Assuming that childBNode.parent === this
     let newBNode:BNode<Data> = new BNode<Data>(this, this.maxDegree);
     let sizePartition1:number = Math.floor(childBNode.thresholds.length/2);
@@ -290,8 +301,35 @@ export class BNode<Data> {
     }
 
     //Check if we have to split
+    let ans:(BNode<Data> | undefined) = undefined;
     if (this.thresholds.length > this.maxDegree){
-      return this._split_node_wrapper();
+      ans = this._split_node_wrapper(userID);
+      if (newBNode.thresholds.includes(userID)){
+        return newBNode;
+      }
+      else if (childBNode.thresholds.includes(userID)){
+        return childBNode;
+      }
+      else{
+        if (typeof ans === "undefined"){
+          throw new Error("Couldn't find the node we just added bruh");
+        }
+        return ans;
+      }
+    }
+    else{
+      if (keyToPromote === userID){
+        return this;
+      }
+      else if (newBNode.thresholds.includes(userID)){
+        return newBNode;
+      }
+      else if (childBNode.thresholds.includes(userID)){
+        return childBNode;
+      }
+      else{
+        return undefined;
+      }
     }
   }
 
@@ -799,19 +837,24 @@ export class BNode<Data> {
     return retMap;
   }
   
+  // Has
+  has(userID:Key){
+    return this.thresholds.includes(userID);
+  }
 }
 
 
 
 export class Testing{
   allTests(){
-    this.insertionTest001();
-    this.insertionTest002();
-    this.insertionTest003();
-    this.searchTest001();
-    this.deleteTest001();
-    this.deleteTest002();
-    this.deleteTest003();
+    // this.insertionTest001();
+    // this.insertionTest002();
+    // this.insertionTest003();
+    this.insertionTest004();
+    // this.searchTest001();
+    // this.deleteTest001();
+    // this.deleteTest002();
+    // this.deleteTest003();
 
     console.log("Works");
   }
@@ -820,19 +863,19 @@ export class Testing{
     let cur:BNode<Array<string>> = new BNode(undefined, 5);
 
     for (let i = 0; i <= 100; i += 5){
-      cur.insert_child(i ,["hi"]);
+      cur = cur.insert_child(i ,["hi"]);
     }
     for (let i = 1; i <= 100; i += 5){
-      cur.insert_child(i ,["hi"]);
+      cur = cur.insert_child(i ,["hi"]);
     }
     for (let i = 2; i <= 100; i += 5){
-      cur.insert_child(i ,["hi"]);
+      cur = cur.insert_child(i ,["hi"]);
     }
     for (let i = 3; i <= 100; i += 5){
-      cur.insert_child(i ,["hi"]);
+      cur = cur.insert_child(i ,["hi"]);
     }
     for (let i = 4; i <= 100; i += 5){
-      cur.insert_child(i ,["hi"]);
+      cur = cur.insert_child(i ,["hi"]);
     }
 
     cur.validate_tree();
@@ -841,7 +884,7 @@ export class Testing{
     let cur:BNode<Array<string>> = new BNode(undefined, 5);
 
     for (let i = 0; i <= 100; i ++){
-      cur.insert_child(i ,["hi"]);
+      cur = cur.insert_child(i ,["hi"]);
     }
     
     cur.validate_tree();
@@ -850,10 +893,20 @@ export class Testing{
     let cur:BNode<Array<string>> = new BNode(undefined, 6);
 
     for (let i = 100; i >= 0; i --){
-      cur.insert_child(i ,["hi"]);
+      cur = cur.insert_child(i ,["hi"]);
     }
     
     cur.validate_tree();
+  }
+  insertionTest004(){
+    let cur:BNode<Array<string>> = new BNode(undefined, 5);
+
+    for (let i = 0; i <= 100; i ++){
+      cur = cur.insert_child(i ,["hi"]);
+      if (!cur.has(i)){
+        throw new Error("Output isnt correct");
+      }
+    }
   }
 
   searchTest001(){
@@ -990,4 +1043,4 @@ export class Testing{
 }
 
 let t = new Testing();
-t.test_bnode_tree_to_node_map();
+t.allTests();
