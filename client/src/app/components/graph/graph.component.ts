@@ -7,7 +7,7 @@ import ChartDataLabels from 'chartjs-plugin-datalabels';
 import opacity from 'hex-color-opacity';
 
 // our own code import
-import { Node, ChartContainer } from 'src/app/interface/interface';
+import { Node, ChartContainer, Transaction } from 'src/app/interface/interface';
 import { BNode } from '../class/b-tree';
 import { MAX_DEGREE } from 'src/app/constants';
 import { TransactionService } from 'src/app/services/transaction.service';
@@ -31,11 +31,11 @@ export class GraphComponent implements OnInit, OnDestroy, AfterViewInit{
 
   // tree variable 
   tree : BNode<number>;
-  users : number[];
+  usersID : Set<number>;
 
   constructor(private transactionService: TransactionService) { 
     this.tree = new BNode(undefined, MAX_DEGREE);
-    this.users = [];
+    this.usersID = new Set;
   }
 
   ngOnInit() : void {
@@ -50,9 +50,11 @@ export class GraphComponent implements OnInit, OnDestroy, AfterViewInit{
 
     // set initial nodes
     this.tree.insert_child(0, 0);
+    this.usersID.add(0);
     for(let i = 25; i !=1; i--) {
       let random = Math.random() * 10;
       this.tree.insert_child(i, random);
+      this.usersID.add(i);
     }
     
     // set the tick for making the simulation agent
@@ -78,23 +80,30 @@ export class GraphComponent implements OnInit, OnDestroy, AfterViewInit{
     if(r <= 25){
       const timestamp = Math.trunc(Date.now() / 1000) % 10000;
       this.tree.insert_child(timestamp, r);
+      this.usersID.add(timestamp);
     }
-    Array.from(this.nodes.values()).forEach(node => {
-      this.handleAgent(node, r);
+    this.usersID.forEach(n => {
+      this.handleAgent(n, r);
     });
     this.nodes = this.tree.bnode_tree_to_node_map();
     this.updateChart();
   }
 
-  handleAgent(node : Node, r : number) : void {
-    const action : number =  r % node.id % 3;
+  handleAgent(n : number, r : number) : void {
+    const action : number =  r % n % 3;
     switch(action) {
       case 1:
         // console.log("Transaction from: " + node.id);
         // this.tree.create_transaction
+        const transaction : Transaction = {
+          writes: [],
+          reads: []
+        }
+        this.tree.search(n)?.create_transaction(transaction);
         break;
       case 2:
-        this.tree = this.tree.delete(node.id);
+        this.tree = this.tree.delete(n);
+        this.usersID.delete(n);
         break;
       case 3:
         // console.log("Transaction from: " + node.id);

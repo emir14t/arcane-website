@@ -15,7 +15,10 @@ export interface ChartContainer {
 }
 
 export interface Transaction{
-    writes:Map<number, any>,
-    reads:Map<number, any>
+    // writes:Map<number, any>,
+    // reads:Map<number, any>
+    writes: any[],
+    reads: any[]
+
 }
   
