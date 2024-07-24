@@ -21,6 +21,7 @@
     "@emailjs/browser": "^4.3.3",
     "chart.js": "^4.4.3",
     "chartjs-chart-graph": "^4.3.1",
+    "chartjs-plugin-datalabels": "^2.2.0",
     "emailjs-com": "^3.2.0",
     "hex-color-opacity": "^0.4.2",
     "rxjs": "~7.8.0",
