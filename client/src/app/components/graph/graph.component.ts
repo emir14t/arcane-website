@@ -8,7 +8,7 @@ import opacity from 'hex-color-opacity';
 
 // our own code import
 import { Node, ChartContainer } from 'src/app/interface/interface';
-import { BNode, root} from '../class/b-tree';
+import { BNode } from '../class/b-tree';
 import { MAX_DEGREE } from 'src/app/constants';
 
 Chart.register(...registerables, TreeController, EdgeLine, ChartDataLabels);
@@ -25,18 +25,18 @@ export class GraphComponent implements OnInit, OnDestroy, AfterViewInit{
   intervalId : any;
   chart : any;
   chartCharacteristic : ChartContainer = {dataset:[], labels:[]};
+  tree : BNode<number>;
 
   constructor() { 
-    let tree : BNode<Array<string>> = new BNode(undefined, MAX_DEGREE);
-    console.log(tree);
+    this.tree = new BNode(undefined, MAX_DEGREE);
   }
 
   ngOnInit() : void {
-    for(let i = 15; i !=0; i--) {
+    for(let i = 25; i !=0; i--) {
       let random = Math.random() * 10;
-      root.insert_child(i, random);
+      this.tree.insert_child(i, random);
     }
-    root.insert_child(0, 0);
+    this.tree.insert_child(0, 0);
     this.intervalId = setInterval(() => {
       const randomNumber = Math.floor(Math.random() * 100); // Generates a random number between 0 and 99
       this.handleTick(randomNumber);
@@ -50,7 +50,7 @@ export class GraphComponent implements OnInit, OnDestroy, AfterViewInit{
   }
 
   ngAfterViewInit() : void {
-    this.nodes = root.bnode_tree_to_node_map();
+    this.nodes = this.tree.bnode_tree_to_node_map();
     this.updateChartCharacteristic();
     this.createGraphChart();
   }
@@ -58,12 +58,12 @@ export class GraphComponent implements OnInit, OnDestroy, AfterViewInit{
   handleTick(r : number) : void {
     if(r <= 25){
       const timestamp = Math.trunc(Date.now() / 1000) % 10000;
-      root.insert_child(timestamp, r);
+      this.tree.insert_child(timestamp, r);
     }
     Array.from(this.nodes.values()).forEach(node => {
       this.handleAgent(node, r);
     });
-    this.nodes = root.bnode_tree_to_node_map();
+    this.nodes = this.tree.bnode_tree_to_node_map();
     this.updateChart();
   }
 
@@ -74,7 +74,7 @@ export class GraphComponent implements OnInit, OnDestroy, AfterViewInit{
         console.log("Transaction from: " + node.id);
         break;
       case 2:
-        root.delete(node.id);
+        this.tree = this.tree.delete(node.id);
         break;
       case 3:
         console.log("Transaction from: " + node.id);
@@ -82,7 +82,7 @@ export class GraphComponent implements OnInit, OnDestroy, AfterViewInit{
       default:
         // do nothing
         return;
-    }    
+    } 
   }
 
   updateChart(){
