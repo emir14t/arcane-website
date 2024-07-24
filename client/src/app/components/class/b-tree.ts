@@ -1,25 +1,29 @@
 import { Node,Transaction } from "src/app/interface/interface";
 import { Mutex } from 'async-mutex';
 import { BUBBLE_UP_WAIT_TIME,TRANSACTION_WAIT_TIME } from "src/app/constants"; 
+import { TransactionService } from "src/app/services/transaction.service";
 
 type Key = number;
 type Nullable<K> = undefined | K;
 
 function process_transactions(transactions:Array<Transaction>){
-  console.log("Transaction Arrived");
+  // console.log("Transaction Arrived");
   let output:Array<String> = [];
   for (let i = 0; i < transactions.length; i++){
     output.push(transactions[i].writes.keys().next().value)
   }
-  console.log("--->" + output.join(' '));
-  console.log();
+  // console.log("--->" + output.join(' '));
+  // console.log();
 }
+
 //Use that map that you conveniently have, you fucking shithead to convert nodes to its ID
 function transaction_is_arriving(node:BNode<any>){
-
+  let transactionService: TransactionService = new TransactionService;
+  transactionService.transactionIsArriving(node);
 }
 function transaction_is_leaving(node:BNode<any>){
-
+  let transactionService: TransactionService = new TransactionService;
+  transactionService.transactionIsLeaving(node);
 }
 
 export class BNode<Data> {

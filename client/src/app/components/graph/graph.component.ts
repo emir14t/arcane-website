@@ -10,6 +10,8 @@ import opacity from 'hex-color-opacity';
 import { Node, ChartContainer } from 'src/app/interface/interface';
 import { BNode } from '../class/b-tree';
 import { MAX_DEGREE } from 'src/app/constants';
+import { TransactionService } from 'src/app/services/transaction.service';
+// import { Transaction } from 'src/app/interface/interface';
 
 Chart.register(...registerables, TreeController, EdgeLine, ChartDataLabels);
 
@@ -21,22 +23,39 @@ Chart.register(...registerables, TreeController, EdgeLine, ChartDataLabels);
 
 export class GraphComponent implements OnInit, OnDestroy, AfterViewInit{
 
+  // chart variables
   nodes : Map<number, Node> = new Map<number, Node>();
   intervalId : any;
   chart : any;
   chartCharacteristic : ChartContainer = {dataset:[], labels:[]};
-  tree : BNode<number>;
 
-  constructor() { 
+  // tree variable 
+  tree : BNode<number>;
+  users : number[];
+
+  constructor(private transactionService: TransactionService) { 
     this.tree = new BNode(undefined, MAX_DEGREE);
+    this.users = [];
   }
 
   ngOnInit() : void {
-    for(let i = 25; i !=0; i--) {
+    // set up observer for transaction
+    this.transactionService.transactionArriving$.subscribe(node => {
+      console.log('Transaction is arriving:', node.id);
+    });
+
+    this.transactionService.transactionLeaving$.subscribe(node => {
+      console.log('Transaction is leaving:', node.id);
+    });
+
+    // set initial nodes
+    this.tree.insert_child(0, 0);
+    for(let i = 25; i !=1; i--) {
       let random = Math.random() * 10;
       this.tree.insert_child(i, random);
     }
-    this.tree.insert_child(0, 0);
+    
+    // set the tick for making the simulation agent
     this.intervalId = setInterval(() => {
       const randomNumber = Math.floor(Math.random() * 100); // Generates a random number between 0 and 99
       this.handleTick(randomNumber);
@@ -71,13 +90,14 @@ export class GraphComponent implements OnInit, OnDestroy, AfterViewInit{
     const action : number =  r % node.id % 3;
     switch(action) {
       case 1:
-        console.log("Transaction from: " + node.id);
+        // console.log("Transaction from: " + node.id);
+        // this.tree.create_transaction
         break;
       case 2:
         this.tree = this.tree.delete(node.id);
         break;
       case 3:
-        console.log("Transaction from: " + node.id);
+        // console.log("Transaction from: " + node.id);
         break;
       default:
         // do nothing
