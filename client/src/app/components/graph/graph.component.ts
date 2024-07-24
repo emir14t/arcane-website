@@ -8,7 +8,7 @@ import opacity from 'hex-color-opacity';
 
 // our own code import
 import { Node, ChartContainer } from 'src/app/interface/interface';
-import { BNode, root, bnode_tree_to_node_map} from '../class/b-tree';
+import { BNode, root} from '../class/b-tree';
 import { MAX_DEGREE } from 'src/app/constants';
 
 Chart.register(...registerables, TreeController, EdgeLine, ChartDataLabels);
@@ -50,7 +50,7 @@ export class GraphComponent implements OnInit, OnDestroy, AfterViewInit{
   }
 
   ngAfterViewInit() : void {
-    this.nodes = bnode_tree_to_node_map(root);
+    this.nodes = root.bnode_tree_to_node_map();
     this.updateChartCharacteristic();
     this.createGraphChart();
   }
@@ -63,7 +63,7 @@ export class GraphComponent implements OnInit, OnDestroy, AfterViewInit{
     Array.from(this.nodes.values()).forEach(node => {
       this.handleAgent(node, r);
     });
-    this.nodes = bnode_tree_to_node_map(root);
+    this.nodes = root.bnode_tree_to_node_map();
     this.updateChart();
   }
 

@@ -1,8 +1,17 @@
-
 import { Node } from "src/app/interface/interface";
+import {Mutex} from 'async-mutex';
 
 type Key = number;
 type Nullable<K> = undefined | K;
+
+type Address = number;
+interface Transaction{
+  writes:Map<Address, any>,
+  reads:Map<Address, any>
+}
+
+const BUBBLE_UP_WAIT_TIME:number = 0;
+const TRANSACTION_WAIT_TIME:number = 1;
 
 export let root:BNode<any>;
 
@@ -12,12 +21,21 @@ export class BNode<Data> {
     root = newParent;
     console.log("Root has changed!");
   }
+  async process_transactions(transactions:Array<Transaction>){
+    console.log("Transaction Arrived");
+    let output:Array<String> = [];
+    for (let i = 0; i < transactions.length; i++){
+      output.push(transactions[i].writes.keys().next().value)
+    }
+    console.log("--->" + output.join(' '));
+    console.log();
+  }
 
-  public parent:Nullable<BNode<Data>>;
-  public children:Array<BNode<Data>> = [];
-  public thresholds:Array<Key> = new Array<Key>();
-  public datas:Array<Data> = new Array<Data>();
-  public maxDegree:number = -1;
+  private parent:Nullable<BNode<Data>>;
+  private children:Array<BNode<Data>> = [];
+  private thresholds:Array<Key> = new Array<Key>();
+  private datas:Array<Data> = new Array<Data>();
+  private maxDegree:number = -1;
 
   constructor(parent:Nullable<BNode<Data>>, maxDegree:number){
     //Initialization
@@ -30,6 +48,41 @@ export class BNode<Data> {
     }
   }
 
+  // Transactions
+  private my_lock = new Mutex();
+  private all_cur_transactions:Array<Transaction> = []
+  async create_transaction(transaction:Transaction){
+    this._data_collection([transaction]);
+  }
+  private async _data_collection(transactions:Array<Transaction>):Promise<void>{
+    await this.my_lock.acquire();
+    try{
+      let im_collecting = (this.all_cur_transactions.length === 0);
+      this.all_cur_transactions.push(...transactions);
+      if (im_collecting){
+        setTimeout(this._bubble_up.bind(this), BUBBLE_UP_WAIT_TIME)
+      }
+    }
+    finally{
+      this.my_lock.release();
+    }
+  }
+  private async _bubble_up(){
+    await this.my_lock.acquire();
+    try{
+      if (typeof this.parent === "undefined"){
+        setTimeout(this.process_transactions.bind(this), TRANSACTION_WAIT_TIME, this.all_cur_transactions);
+      }
+      else{
+        setTimeout((this.parent as BNode<Data>)._data_collection.bind(this), TRANSACTION_WAIT_TIME, this.all_cur_transactions);
+      }
+
+      this.all_cur_transactions = []; 
+    }
+    finally{
+      this.my_lock.release();
+    }
+  }
 
   // Search algorithm
   search(userID:Key):Nullable<Data>{
@@ -680,65 +733,74 @@ export class BNode<Data> {
       child._print_tree_down(cur_level + 1);
     }
   }
-}
 
-export function bnode_tree_to_node_map(root:BNode<any>):Map<number, Node>{
-  let queue1:Array<BNode<any>> = [root];
-  let queue2:Array<BNode<any>> = [];
-  let turnstile = true;
-
-  let depth = 0;
-  let breadth = 0;
-  let curID = 1;
-
-  let retMap:Map<number, Node> = new Map();
-  let helpMap:Map<Key, number> = new Map();
-  helpMap.set(root.thresholds[0], 0)
-
-  while(queue1.length !== 0 || queue2.length !== 0){
-    if (turnstile){
-      for (let i = 0; i < queue1.length; i++){
-        let node = queue1[i];
-        let children = []
-        for (let child of node.children){
-          helpMap.set(child.thresholds[0], curID);
-          children.push(curID);
-          queue2.push(child);
-          curID++;
-        }
-        
-        let id:number = (helpMap.get(node.thresholds[0]) as number);
-        let parent:null|number = typeof node.parent === "undefined" ? null : (helpMap.get(node.parent.thresholds[0]) as number);
-        retMap.set(id, {id:id, value:node.thresholds.toString(), depth:depth, breadth:breadth, parent:parent});
-        breadth++;
-      }
-      queue1 = []
+  // BNode tree to Map
+  bnode_tree_to_node_map():Map<number, Node>{
+    if (typeof this.parent === "undefined"){
+      return this._bnode_tree_to_node_map_down(this);
     }
-    else{
-      for (let i = 0; i < queue2.length; i++){
-        let node = queue2[i];
-        let children = []
-        for (let child of node.children){
-          helpMap.set(child.thresholds[0], curID);
-          children.push(curID);
-          queue1.push(child);
-          curID++;
-        }
-        
-        let id:number = (helpMap.get(node.thresholds[0]) as number);
-        let parent:null|number = typeof node.parent === "undefined" ? null : (helpMap.get(node.parent.thresholds[0]) as number);
-        retMap.set(id, {id:id, value:node.thresholds.toString(), depth:depth, breadth:breadth, parent:parent});
-        breadth++;
-      }
-      queue2 = []
-    }
-    depth ++;
-    breadth = 0;
-    turnstile = !turnstile;
+    return (this.parent as BNode<Data>).bnode_tree_to_node_map();
   }
-
-  return retMap;
+  private _bnode_tree_to_node_map_down(root:BNode<any>):Map<number, Node>{
+    let queue1:Array<BNode<any>> = [root];
+    let queue2:Array<BNode<any>> = [];
+    let turnstile = true;
+  
+    let depth = 0;
+    let breadth = 0;
+    let curID = 1;
+  
+    let retMap:Map<number, Node> = new Map();
+    let helpMap:Map<Key, number> = new Map();
+    helpMap.set(root.thresholds[0], 0)
+  
+    while(queue1.length !== 0 || queue2.length !== 0){
+      if (turnstile){
+        for (let i = 0; i < queue1.length; i++){
+          let node = queue1[i];
+          let children = []
+          for (let child of node.children){
+            helpMap.set(child.thresholds[0], curID);
+            children.push(curID);
+            queue2.push(child);
+            curID++;
+          }
+          
+          let id:number = (helpMap.get(node.thresholds[0]) as number);
+          let parent:null|number = typeof node.parent === "undefined" ? null : (helpMap.get(node.parent.thresholds[0]) as number);
+          retMap.set(id, {id:id, value:node.thresholds.toString(), depth:depth, breadth:breadth, parent:parent});
+          breadth++;
+        }
+        queue1 = []
+      }
+      else{
+        for (let i = 0; i < queue2.length; i++){
+          let node = queue2[i];
+          let children = []
+          for (let child of node.children){
+            helpMap.set(child.thresholds[0], curID);
+            children.push(curID);
+            queue1.push(child);
+            curID++;
+          }
+          
+          let id:number = (helpMap.get(node.thresholds[0]) as number);
+          let parent:null|number = typeof node.parent === "undefined" ? null : (helpMap.get(node.parent.thresholds[0]) as number);
+          retMap.set(id, {id:id, value:node.thresholds.toString(), depth:depth, breadth:breadth, parent:parent});
+          breadth++;
+        }
+        queue2 = []
+      }
+      depth ++;
+      breadth = 0;
+      turnstile = !turnstile;
+    }
+  
+    return retMap;
+  }
+  
 }
+
 
 
 export class Testing{
@@ -914,9 +976,18 @@ export class Testing{
   
     cur.print_tree();
   
-    console.log(bnode_tree_to_node_map(root));
+    console.log(root.bnode_tree_to_node_map());
+  }
+  
+  async test_async(){
+    let cur:BNode<number> = new BNode(undefined, 4);
+    for (let i = 0; i < 100; i++){
+      let map:Map<Address, number> = new Map();
+      map.set(i,i);
+      cur.create_transaction({writes:map, reads:map});
+    }
   }
 }
 
-// let t = new Testing();
-// t.test_bnode_tree_to_node_map();
+let t = new Testing();
+t.test_bnode_tree_to_node_map();
