@@ -1,14 +1,8 @@
-import { Node } from "src/app/interface/interface";
+import { Node,Transaction } from "src/app/interface/interface";
 import { Mutex } from 'async-mutex';
 
 type Key = number;
 type Nullable<K> = undefined | K;
-type Address = number;
-
-interface Transaction{
-  writes:Map<Address, any>,
-  reads:Map<Address, any>
-}
 
 const BUBBLE_UP_WAIT_TIME:number = 5;   // How long(ms) does each node wait for more transactions before bubbleling up
 const TRANSACTION_WAIT_TIME:number = 1; // How long(ms) does each node wait before sending the data to his parent (applies after bubble up wait time)
@@ -50,6 +44,7 @@ export class BNode<Data> {
   async create_transaction(transaction:Transaction){
     this._data_collection([transaction]);
   }
+  // Called whenever a node receives a transaction
   private async _data_collection(transactions:Array<Transaction>):Promise<void>{
     await this.my_lock.acquire();
     try{
@@ -63,6 +58,7 @@ export class BNode<Data> {
       this.my_lock.release();
     }
   }
+  // Called whenever a node bubbles up a transaction
   private async _bubble_up(){
     await this.my_lock.acquire();
     try{
@@ -80,7 +76,7 @@ export class BNode<Data> {
     }
   }
 
-  // Search algorithm
+  // Search algorithm (returns the Data associated with the userID if it exists and undefined if the userID doesn't exist)
   search(userID:Key):Nullable<Data>{
     return this._search_up(userID);
   }
@@ -131,8 +127,7 @@ export class BNode<Data> {
     return this.parent._search_up(userID);
   }
 
-  // Make insert_child() return the node in which he wrote
-  // Insertion algorithm
+  // Insertion algorithm (returns a BNode<Data> that contains the user you added)
   insert_child(userID:Key, data:Data):BNode<Data>{
     return this._insert_child_up(userID, data);
   }
@@ -318,7 +313,7 @@ export class BNode<Data> {
     }
   }
 
-  // Deletion algorithm
+  // Deletion algorithm (returns a valid BNode<Data>)
   delete(userID:Key):BNode<Data>{
     return this._delete_up(userID);
   }
@@ -678,7 +673,7 @@ export class BNode<Data> {
     throw new Error("Balancing failed");
   }
   
-  // Validation algorithm
+  // Validation algorithm (checks the integrety of the BTree)
   validate_tree():void{
     this._validate_up();
   }
@@ -755,7 +750,7 @@ export class BNode<Data> {
     }
   }
 
-  // BNode tree to Map
+  // BNode tree to Map (converts a BNode tree to a map)
   bnode_tree_to_node_map():Map<number, Node>{
     if (typeof this.parent === "undefined"){
       return this._bnode_tree_to_node_map_down(this);
@@ -820,7 +815,7 @@ export class BNode<Data> {
     return retMap;
   }
   
-  // Has
+  // Has (used for tests)
   has(userID:Key){
     return this.thresholds.includes(userID);
   }
@@ -1006,7 +1001,7 @@ export class Testing{
   async test_async(){
     let cur:BNode<number> = new BNode(undefined, 4);
     for (let i = 0; i < 100; i++){
-      let map:Map<Address, number> = new Map();
+      let map:Map<number, number> = new Map();
       map.set(i,i);
       cur.create_transaction({writes:map, reads:map});
     }

@@ -13,3 +13,9 @@ export interface ChartContainer {
     maxX ?: number,
     maxY?: number,
 }
+
+export interface Transaction{
+    writes:Map<number, any>,
+    reads:Map<number, any>
+}
+  
