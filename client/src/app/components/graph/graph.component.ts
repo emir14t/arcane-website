@@ -7,7 +7,7 @@ import ChartDataLabels from 'chartjs-plugin-datalabels';
 import opacity from 'hex-color-opacity';
 
 // our own code import
-import { Node } from 'src/app/interface/interface';
+import { Node, ChartContainer } from 'src/app/interface/interface';
 import { BNode, root, bnode_tree_to_node_map} from '../class/b-tree';
 import { MAX_DEGREE } from 'src/app/constants';
 
@@ -24,7 +24,7 @@ export class GraphComponent implements OnInit, OnDestroy, AfterViewInit{
   nodes : Map<number, Node> = new Map<number, Node>();
   intervalId : any;
   chart : any;
-  // serverNode : Node = {id: 0, depth: 0, breadth: 0, parent: null, value:[]};
+  chartCharacteristic : ChartContainer = {dataset:[], labels:[]};
 
   constructor() { 
     let tree : BNode<Array<string>> = new BNode(undefined, MAX_DEGREE);
@@ -32,10 +32,10 @@ export class GraphComponent implements OnInit, OnDestroy, AfterViewInit{
   }
 
   ngOnInit() : void {
-    // for(let i = 50; i !=0; i--) {
-    //   let random = Math.random() * 10;
-    //   root.insert_child(i, random);
-    // }
+    for(let i = 15; i !=0; i--) {
+      let random = Math.random() * 10;
+      root.insert_child(i, random);
+    }
     root.insert_child(0, 0);
     this.intervalId = setInterval(() => {
       const randomNumber = Math.floor(Math.random() * 100); // Generates a random number between 0 and 99
@@ -51,6 +51,7 @@ export class GraphComponent implements OnInit, OnDestroy, AfterViewInit{
 
   ngAfterViewInit() : void {
     this.nodes = bnode_tree_to_node_map(root);
+    this.updateChartCharacteristic();
     this.createGraphChart();
   }
 
@@ -58,13 +59,12 @@ export class GraphComponent implements OnInit, OnDestroy, AfterViewInit{
     if(r <= 25){
       const timestamp = Math.trunc(Date.now() / 1000) % 10000;
       root.insert_child(timestamp, r);
-      this.nodes = bnode_tree_to_node_map(root);
-      // console.log("insertion and size now at" + this.nodes.size);
     }
     Array.from(this.nodes.values()).forEach(node => {
       this.handleAgent(node, r);
     });
-    this.chart.update();
+    this.nodes = bnode_tree_to_node_map(root);
+    this.updateChart();
   }
 
   handleAgent(node : Node, r : number) : void {
@@ -85,10 +85,20 @@ export class GraphComponent implements OnInit, OnDestroy, AfterViewInit{
     }    
   }
 
-  createGraphChart(): void {
+  updateChart(){
+    this.updateChartCharacteristic();
+    this.chart.config.data.labels = this.chartCharacteristic.labels;
+    this.chart.config.data.datasets.data = this.chartCharacteristic.dataset;
+    this.chart.options.scales.x.min = this.chartCharacteristic.minX;
+    this.chart.options.scales.x.max = this.chartCharacteristic.maxX;
+    this.chart.options.scales.y.max = this.chartCharacteristic.maxY;
+    this.chart.update();
+  }
+
+  updateChartCharacteristic(){
     const nodesArray = Array.from(this.nodes.values());
   
-    // Calculate the maximum breadth at each depth level
+    // Calculate the maximum breath at each depth level
     const maxBreadthAtDepth: { [key: number]: number } = {};
     nodesArray.forEach(node => {
       if (!maxBreadthAtDepth[node.depth] || node.breadth > maxBreadthAtDepth[node.depth]) {
@@ -109,24 +119,29 @@ export class GraphComponent implements OnInit, OnDestroy, AfterViewInit{
     }
   
     // Create dataset with adjusted x positions
-    const dataset: { x: number, y: number }[] = nodesArray.map(node => ({
+    this.chartCharacteristic.dataset = nodesArray.map(node => ({
       x: (node.breadth - xOffsetAtDepth[node.depth]) * scalingFactorAtDepth[node.depth],
       y: node.depth
     }));
   
     // Determine the overall min and max x values for scaling
-    const minX = Math.min(...dataset.map(point => point.x));
-    const maxX = Math.max(...dataset.map(point => point.x));
-    const maxY = Math.max(...dataset.map(point => point.y));
-  
+    this.chartCharacteristic.minX = Math.min(...this.chartCharacteristic.dataset.map(point => point.x));
+    this.chartCharacteristic.maxX = Math.max(...this.chartCharacteristic.dataset.map(point => point.x));
+    this.chartCharacteristic.maxY = Math.max(...this.chartCharacteristic.dataset.map(point => point.y));
+
+    // Determine the labels of each node
+    this.chartCharacteristic.labels = Array.from(this.nodes.values()).map(node => (node.value.toString().replace(/,/g, '|')));
+  }
+
+  createGraphChart(): void {  
     this.chart = new Chart('treeChart', {
       plugins: [ChartDataLabels],
       type: 'tree',
       data: {
-        labels: Array.from(this.nodes.values()).map(node => (node.value.toString().replace(/,/g, '|'))),
+        labels: this.chartCharacteristic.labels,
         datasets: [{
           label: 'User Shard',
-          data: dataset,
+          data: this.chartCharacteristic.dataset,
           edges: this.createEdges(),
           pointRadius: 1,
           pointBorderWidth: 0,
@@ -172,12 +187,12 @@ export class GraphComponent implements OnInit, OnDestroy, AfterViewInit{
           y: {
             reverse: false,
             min: 0,
-            max: maxY * 1.05,
+            max: this.chartCharacteristic.maxY ? this.chartCharacteristic.maxY * 1.05 : 0,
           },
           x: {
             // the 1.05 is a tamporary fix so that the label always display properly by giving 5% marging to the axis
-            min: minX * 1.05,
-            max: maxX * 1.05,
+            min: this.chartCharacteristic.minX ? this.chartCharacteristic.minX * 1.05 : 0,
+            max: this.chartCharacteristic.maxX ? this.chartCharacteristic.maxX * 1.05 : 0,
           }
         },
         layout: {
