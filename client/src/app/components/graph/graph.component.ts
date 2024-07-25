@@ -48,10 +48,6 @@ export class GraphComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   ngOnInit(): void {
-    // setup transaction observers
-    // this.transactionSub.push(this.transactionService.transactionArriving$.subscribe(userId => {
-    //   this.InTransactionNode.add(userId);
-    // }));
     this.transactionService.transactionArriving$.subscribe(userId => {
       this.InTransactionNode.add(userId);
     });
@@ -66,11 +62,6 @@ export class GraphComponent implements OnInit, OnDestroy, AfterViewInit {
         }
       }
     });
-
-    // this.transactionSub.push(this.transactionService.transactionLeaving$.subscribe(userId => {
-    //   this.InTransactionNode.delete(userId);
-    //   // console.log(userId);
-    // }));
 
     // put some nodes to start
     this.initializeNodes();
@@ -170,7 +161,8 @@ export class GraphComponent implements OnInit, OnDestroy, AfterViewInit {
       maxDepth = Math.max(maxDepth, node.depth);
 
       // set the labels with the good format
-      labels.push(node.value.toString().replace(/,/g, '|'));
+      // labels.push(node.value.toString().replace(/,/g, '|'));
+      labels.push(node.value.toString());
       // set the edges at the good format
       if(node.parent !== null && node.parent !== undefined){
         const nodeArray : number[] = Array.from(this.nodes.keys());
@@ -224,10 +216,32 @@ export class GraphComponent implements OnInit, OnDestroy, AfterViewInit {
           label: 'User Shard',
           data: this.chartCharacteristic.dataset,
           edges: this.chartCharacteristic.edges,
-          pointRadius: 1,
-          pointBorderWidth: 0,
+          pointRadius: 5,
+          // pointBackgroundColor: '#F4F6FC',
+          pointBorderWidth: 3,
+          pointBorderColor: '#5436EA',
           borderWidth: 5,
           borderColor: opacity('#B100E8', 0.1),
+
+          pointBackgroundColor: (context) => {
+              const labels = context.chart.data.labels;
+              if (labels) {
+                const label = labels[context.dataIndex];
+                const values = (label as string).split(',').map(id => Number(id));
+                let maxCount = 0;
+
+                for (let value of values) {
+                  if (this.InTransactionNode.has(value)) {
+                    maxCount++;
+                  }
+                }
+                // Interpolate between two colors based on the count
+                const factor = this.calculateColorFactor(maxCount, values.length);
+                let color: string = this.lerpColor('#F4F6FC', '#B100E8', factor);
+                return color;
+              }
+              return '#745ced';
+            }, 
         }]
       },
       options: {
@@ -242,10 +256,44 @@ export class GraphComponent implements OnInit, OnDestroy, AfterViewInit {
           }
         },
         plugins: {
+          tooltip:{
+            enabled: true,
+            displayColors: false,
+            backgroundColor: opacity('#5436EA', 0.75),
+            bodyFont: {
+              size: 16,
+            },
+            titleFont: {
+              size: 20,
+              weight: 'bold'
+            },
+            callbacks: {
+              title: function(tooltipItems) {
+                const item = tooltipItems[0];
+                return 'Shard ID : ' + (item.dataIndex + 1);
+              },
+              label: (tooltipItem: any) => {
+                const { dataIndex, chart } = tooltipItem;
+                const labels = chart.data.labels as string[] || []; 
+                const userList = labels[dataIndex] || 'N/A';
+                const userIds = userList.split(',').map(id => Number(id));
+                
+                console.log('id',userList.split(',').map(id => Number(id)));
+                const transactionIds = userIds.filter(userId => { return this.InTransactionNode.has(userId); });    
+                console.log('TI', this.InTransactionNode);
+                console.log('T',transactionIds);
+       
+                return [
+                  `User List: ${userList}`,
+                  `User in Transaction: ${transactionIds.join(', ')}`
+                ];
+              },      
+            }    
+          },
           title: {
             display: true,
             text: "Methex Architecture Simulation Of User Based Set Up",
-            color: '#B100E8',
+            color: '#0D0628',
             font: {
               size: 24,
               weight: 'bold'
@@ -255,33 +303,16 @@ export class GraphComponent implements OnInit, OnDestroy, AfterViewInit {
             }
           },
           datalabels: {
-            color: (context) => {
-              const labels = context.chart.data.labels;
-              if (labels) {
-                const label = labels[context.dataIndex];
-                const values = (label as any).split('|').map(Number);
-                let maxCount = 0;
-                for (let value of values) {
-                  if (this.InTransactionNode.has(value)) {
-                    maxCount++;
-                  }
-                }
-                // Interpolate between two colors based on the count
-                const factor = this.calculateColorFactor(maxCount, values.length);
-                return this.lerpColor('#745ced', '#B100E8', factor);
-              }
-              return '#745ced'; // Default color
-            },  
-            backgroundColor: '#F4F6FC',
-            borderColor: '#745ced',
-            borderWidth: 2,
-            formatter: (value, context) => {
-              const labels = context.chart.data.labels;
-              return labels ? labels[context.dataIndex] : 'No Users';
-            },
-            font: {
-              size: 12,
-              weight: 'bold'
+            labels:{
+              index: {
+                align: 'end',
+                anchor: 'end',
+                color: "#B100E8",
+                font: {size: 16},
+                formatter: function(value, ctx) {
+                  return (ctx.dataIndex + 1).toString();
+                },
+              },
             }
           },
           legend: {
