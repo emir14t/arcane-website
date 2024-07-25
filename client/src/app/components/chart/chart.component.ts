@@ -120,7 +120,7 @@ export class ChartComponent implements OnInit, AfterViewInit {
           title:{
             display: true,
             text: "Simulation stats",
-            color: '#B100E8',
+            color: '#0D0628',
             font: {
               size: 24,
               weight: 'bold'

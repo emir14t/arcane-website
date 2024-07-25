@@ -299,7 +299,7 @@ export class GraphComponent implements OnInit, OnDestroy, AfterViewInit {
               weight: 'bold'
             },
             padding: {
-              bottom: 40
+              bottom: 80
             }
           },
           datalabels: {
