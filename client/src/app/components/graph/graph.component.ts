@@ -277,12 +277,7 @@ export class GraphComponent implements OnInit, OnDestroy, AfterViewInit {
                 const labels = chart.data.labels as string[] || []; 
                 const userList = labels[dataIndex] || 'N/A';
                 const userIds = userList.split(',').map(id => Number(id));
-                
-                console.log('id',userList.split(',').map(id => Number(id)));
-                const transactionIds = userIds.filter(userId => { return this.InTransactionNode.has(userId); });    
-                console.log('TI', this.InTransactionNode);
-                console.log('T',transactionIds);
-       
+                const transactionIds = userIds.filter(userId => { return this.InTransactionNode.has(userId); });           
                 return [
                   `User List: ${userList}`,
                   `User in Transaction: ${transactionIds.join(', ')}`
