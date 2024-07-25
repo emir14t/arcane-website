@@ -256,7 +256,7 @@ export class GraphComponent implements OnInit, OnDestroy, AfterViewInit {
         },
         scales: {
           x: {
-            display: true,
+            display: false,
             min: this.chartCharacteristic.minX,
             max: this.chartCharacteristic.maxX,
             ticks: {
@@ -265,7 +265,7 @@ export class GraphComponent implements OnInit, OnDestroy, AfterViewInit {
             }
           },
           y: {
-            display: true,
+            display: false,
             min: 0,
             max: this.chartCharacteristic.maxY,
             ticks: {
