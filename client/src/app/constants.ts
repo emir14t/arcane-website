@@ -2,8 +2,8 @@ export const MAX_DEGREE = 6;
 export const LAST_INDEX = 1;
 
 export const INITIAL_NODE_ID = 0;
-export const NUMBER_OF_INITIAL_NODE = 50;
-export const PROBABILITY_OF_ADDING_USER = 25;
+export const NUMBER_OF_INITIAL_NODE = 7;
+export const PROBABILITY_OF_ADDING_USER = 75;
 export const STATS_WINDOW = 100;
 
 export const BUBBLE_UP_WAIT_TIME:number = 500;   // How long(ms) does each node wait for more transactions before bubbleling up
