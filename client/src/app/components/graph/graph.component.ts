@@ -12,7 +12,6 @@ import { BNode } from '../class/b-tree';
 import { INITIAL_NODE_ID, MAX_DEGREE, NUMBER_OF_INITIAL_NODE, PROBABILITY_OF_ADDING_USER } from 'src/app/constants';
 import { TransactionService } from 'src/app/services/transaction.service';
 import { Subscription } from 'rxjs';
-// import { Transaction } from 'src/app/interface/interface';
 
 Chart.register(...registerables, TreeController, TreeChart, EdgeLine, PointElement, LinearScale, ChartDataLabels);
 
