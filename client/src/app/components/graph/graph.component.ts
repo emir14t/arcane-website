@@ -112,7 +112,7 @@ export class GraphComponent implements OnInit, OnDestroy, AfterViewInit {
     }
 
     // making the user agent do a random actin
-    this.usersID.forEach(id => this.handleAgent(id, randomNumber));
+    this.usersID.forEach(id => this.handleAgent(id));
     this.nodes = this.tree.bnode_tree_to_node_map();
     this.updateChart();
 
@@ -128,8 +128,8 @@ export class GraphComponent implements OnInit, OnDestroy, AfterViewInit {
     this.transactionNum = 0;
   }
 
-  handleAgent(id: number, r: number): void {
-    const action = (r + id ) % 13;
+  handleAgent(id: number): void {
+    const action = (Math.trunc(Math.random() * 10)) % 3;
     if (action === 1) {
       const transaction: Transaction = { writes: [id], reads: [id] };
       this.tree.search(id)?.create_transaction(transaction);

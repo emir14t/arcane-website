@@ -35,7 +35,6 @@ export class ChartComponent implements OnInit, AfterViewInit {
   ngOnInit(): void {
     this.transactionService.data$.subscribe(newData => {
       if (this.chart) {
-        console.log("update");
         this.updateChart(newData);
       }
     });
