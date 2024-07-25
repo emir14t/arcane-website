@@ -260,14 +260,18 @@ export class GraphComponent implements OnInit, OnDestroy, AfterViewInit {
               if (labels) {
                 const label = labels[context.dataIndex];
                 const values = (label as any).split('|').map(Number);
+                let maxCount = 0;
                 for (let value of values) {
                   if (this.InTransactionNode.has(value)) {
-                    return '#B100E8'; // Change color to red if the value is in the set
+                    maxCount++;
                   }
                 }
+                // Interpolate between two colors based on the count
+                const factor = this.calculateColorFactor(maxCount, values.length);
+                return this.lerpColor('#745ced', '#B100E8', factor);
               }
               return '#745ced'; // Default color
-            },
+            },  
             backgroundColor: '#F4F6FC',
             borderColor: '#745ced',
             borderWidth: 2,
@@ -307,4 +311,22 @@ export class GraphComponent implements OnInit, OnDestroy, AfterViewInit {
       }
     });
   }
+
+  private lerpColor(a : string, b : string, amount: number) { 
+    var ah = +a.replace('#', '0x'),
+        ar = ah >> 16, ag = ah >> 8 & 0xff, ab = ah & 0xff,
+        bh =  +b.replace('#', '0x'),
+        br = bh >> 16, bg = bh >> 8 & 0xff, bb = bh & 0xff,
+        rr = ar + amount * (br - ar),
+        rg = ag + amount * (bg - ag),
+        rb = ab + amount * (bb - ab);
+    const hexColor : string = '#' + ((1 << 24) + (rr << 16) + (rg << 8) + rb | 0).toString(16).slice(1);
+    return hexColor;
+  }
+
+  private calculateColorFactor(value: number, total: number): number {
+    const r = Math.min(1, value / total)
+    return r;
+  }
+  
 }
