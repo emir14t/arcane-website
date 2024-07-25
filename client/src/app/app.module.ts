@@ -11,6 +11,7 @@ import { SolutionsPageComponent } from './pages/solutions-page/solutions-page/so
 import { ContactPageComponent } from './pages/contact-page/contact-page/contact-page.component'
 import { TecPageComponent } from './pages/tec-page/tec-page/tec-page.component';
 import { GraphComponent } from './components/graph/graph.component';
+import { ChartComponent } from './components/chart/chart.component';
 
 @NgModule({
   declarations: [
@@ -23,6 +24,7 @@ import { GraphComponent } from './components/graph/graph.component';
     ContactPageComponent,
     TecPageComponent,
     GraphComponent,
+    ChartComponent,
   ],
   imports: [
     BrowserModule,
