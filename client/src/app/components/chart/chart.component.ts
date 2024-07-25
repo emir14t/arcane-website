@@ -1,5 +1,6 @@
 import { AfterViewInit, Component, OnInit } from '@angular/core';
 import { Chart, LinearScale, PointElement, registerables } from 'chart.js';
+import { STATS_WINDOW } from 'src/app/constants';
 import { TransactionService } from 'src/app/services/transaction.service';
 
 Chart.register(...registerables, PointElement, LinearScale);
@@ -19,11 +20,11 @@ export class ChartComponent implements OnInit, AfterViewInit {
   chart!: Chart;
 
   constructor(private transactionService: TransactionService) {
-    this.data1 = Array(10).fill(0);
-    this.data2 = Array(10).fill(1);
-    this.data3 = Array(10).fill(2);
-    this.data4 = Array(10).fill(3);  
-    this.time = Array.from({ length: 10 }, (_, i) => i);
+    this.data1 = Array(STATS_WINDOW).fill(0);
+    this.data2 = Array(STATS_WINDOW).fill(1);
+    this.data3 = Array(STATS_WINDOW).fill(2);
+    this.data4 = Array(STATS_WINDOW).fill(3);  
+    this.time = Array.from({ length: STATS_WINDOW }, (_, i) => i);
   }
 
   ngOnInit(): void {

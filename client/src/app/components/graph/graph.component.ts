@@ -33,6 +33,10 @@ export class GraphComponent implements OnInit, OnDestroy, AfterViewInit {
   usersID: Set<number>;
   InTransactionNode: Set<number>;
 
+  transactionNum : number = 0;
+  mtxTx : number = 0;
+  serverMtxTx : number = 0;
+
   // private variables
   private transactionSub: Subscription[] = [];
 
@@ -53,7 +57,14 @@ export class GraphComponent implements OnInit, OnDestroy, AfterViewInit {
     });
 
     this.transactionService.transactionLeaving$.subscribe(userId => {
-      this.InTransactionNode.delete(userId);
+      if(this.InTransactionNode.delete(userId)){
+        if(this.tree === this.tree.search(userId)){
+          this.serverMtxTx += 1;
+        }
+        else {
+          this.mtxTx += 1;
+        }
+      }
     });
 
     // this.transactionSub.push(this.transactionService.transactionLeaving$.subscribe(userId => {
@@ -104,6 +115,17 @@ export class GraphComponent implements OnInit, OnDestroy, AfterViewInit {
     this.usersID.forEach(id => this.handleAgent(id, randomNumber));
     this.nodes = this.tree.bnode_tree_to_node_map();
     this.updateChart();
+
+    const stats : number[] = [];
+    // const mTx : number = this.mtxTx - this.transactionNum;
+    stats.push(this.usersID.size);
+    stats.push(this.mtxTx);
+    stats.push(this.serverMtxTx);
+    stats.push(this.transactionNum);
+    this.transactionService.updateTxData(stats);
+    this.mtxTx = 0;
+    this.serverMtxTx = 0;
+    this.transactionNum = 0;
   }
 
   handleAgent(id: number, r: number): void {
@@ -111,6 +133,7 @@ export class GraphComponent implements OnInit, OnDestroy, AfterViewInit {
     if (action === 1) {
       const transaction: Transaction = { writes: [id], reads: [id] };
       this.tree.search(id)?.create_transaction(transaction);
+      this.transactionNum += 1;
     }
     // Add other actions as needed
   }
