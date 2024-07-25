@@ -92,10 +92,6 @@ export class GraphComponent implements OnInit, OnDestroy, AfterViewInit {
     this.usersID.forEach(id => this.handleAgent(id, randomNumber));
     this.nodes = this.tree.bnode_tree_to_node_map();
     this.updateChart();
-
-    console.log(this.nodes.size, this.chartCharacteristic.dataset.length, 
-      this.chartCharacteristic.labels.length, this.chart.data.datasets[0].data.length, 
-      );
   }
 
   handleAgent(id: number, r: number): void {
@@ -109,21 +105,20 @@ export class GraphComponent implements OnInit, OnDestroy, AfterViewInit {
 
   updateChart(): void {
     this.updateChartCharacteristic();
-    // this.chart.data.labels = this.chartCharacteristic.labels;
-    // this.chart.data.datasets[0].data = this.chartCharacteristic.dataset;
-    // this.chart.data.datasets[0].edges = this.chartCharacteristic.edges;
+    this.chart.data.labels = this.chartCharacteristic.labels;
+    this.chart.data.datasets[0].data = this.chartCharacteristic.dataset;
+    this.chart.data.datasets[0].edges = this.chartCharacteristic.edges;
 
-    // if(this.chart.options.scales !== undefined){
-    //   if (this.chart.options.scales['x'] !== undefined) {
-    //     this.chart.options.scales['x'].min = this.chartCharacteristic.minX;
-    //     this.chart.options.scales['x'].max = this.chartCharacteristic.maxX;
-    //   }
-    //   if (this.chart.options.scales['y'] !== undefined) {
-    //     this.chart.options.scales['y'].max = this.chartCharacteristic.maxY;
-    //   } 
-    // }
-    // this.chart.update();
-    this.createGraphChart();
+    if(this.chart.options.scales !== undefined){
+      if (this.chart.options.scales['x'] !== undefined) {
+        this.chart.options.scales['x'].min = this.chartCharacteristic.minX;
+        this.chart.options.scales['x'].max = this.chartCharacteristic.maxX;
+      }
+      if (this.chart.options.scales['y'] !== undefined) {
+        this.chart.options.scales['y'].max = this.chartCharacteristic.maxY;
+      } 
+    }
+    this.chart.update();
   }
 
   updateChartCharacteristic(): void {
