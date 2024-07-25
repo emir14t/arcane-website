@@ -1,7 +1,7 @@
 import { AfterViewInit, Component, OnInit } from '@angular/core';
-import { Chart, registerables } from 'chart.js';
+import { Chart, LinearScale, PointElement, registerables } from 'chart.js';
 
-Chart.register(...registerables);
+Chart.register(...registerables, PointElement, LinearScale);
 
 @Component({
   selector: 'app-chart',
@@ -9,14 +9,21 @@ Chart.register(...registerables);
   styleUrls: ['./chart.component.scss']
 })
 export class ChartComponent implements OnInit, AfterViewInit {
-  data1: number[] = Array(10).fill(0);
-  data2: number[] = Array(10).fill(1);
-  data3: number[] = Array(10).fill(2);
-  data4: number[] = Array(10).fill(3);
+  data1: number[];
+  data2: number[];
+  data3: number[];
+  data4: number[];
+  time: number[];
 
   chart!: Chart;
 
-  constructor() {}
+  constructor() {
+    this.data1 = Array(10).fill(0);
+    this.data2 = Array(10).fill(1);
+    this.data3 = Array(10).fill(2);
+    this.data4 = Array(10).fill(3);  
+    this.time = Array.from({ length: 10 }, (_, i) => i);
+  }
 
   ngOnInit(): void {
 
@@ -35,39 +42,39 @@ export class ChartComponent implements OnInit, AfterViewInit {
     this.chart = new Chart('chart', {
       type: 'line',
       data: {
+        labels: this.time,
         datasets: [
           {
             label: 'Number of users',
             data: this.data1,
             borderColor: 'rgba(75, 192, 192, 1)',
             backgroundColor: 'rgba(75, 192, 192, 0.2)',
-            fill: false
           },
           {
             label: 'Total of mtx tx',
             data: this.data2,
             borderColor: 'rgba(54, 162, 235, 1)',
             backgroundColor: 'rgba(54, 162, 235, 0.2)',
-            fill: false
           },
           {
             label: 'Num of mtx tx handled by server',
             data: this.data3,
             borderColor: 'rgba(255, 206, 86, 1)',
             backgroundColor: 'rgba(255, 206, 86, 0.2)',
-            fill: false
           },
           {
             label: 'Total transactions',
             data: this.data4,
             borderColor: 'rgba(153, 102, 255, 1)',
             backgroundColor: 'rgba(153, 102, 255, 0.2)',
-            fill: false
           }
         ]
       },
       options: {
         plugins:{
+          datalabels:{
+            display: false,
+          },
           title:{
             display: true,
             text: "Simulation stats",
@@ -81,7 +88,7 @@ export class ChartComponent implements OnInit, AfterViewInit {
             }
           },
           legend:{
-            display:true,
+            display: true,
             position: 'right',
           }
         },
@@ -91,14 +98,14 @@ export class ChartComponent implements OnInit, AfterViewInit {
             display: true,
             title: {
               display: true,
-              text: 'X-Axis'
+              text: 'Time interval'
             }
           },
           y: {
             display: true,
             title: {
               display: true,
-              text: 'Y-Axis'
+              text: 'Values in quantity'
             }
           }
         }
