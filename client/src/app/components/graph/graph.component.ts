@@ -31,6 +31,7 @@ export class GraphComponent implements OnInit, OnDestroy, AfterViewInit {
   chartCharacteristic: ChartContainer = { dataset: [], labels: [], edges: [] };
   tree: BNode<number>;
   usersID: Set<number>;
+  InTransactionNode: Set<number>;
 
   // private variables
   private transactionSub: Subscription[] = [];
@@ -39,14 +40,18 @@ export class GraphComponent implements OnInit, OnDestroy, AfterViewInit {
     this.tree = new BNode(undefined, MAX_DEGREE, this.transactionService);
     this.nodes = new Map<number, Node>();
     this.usersID = new Set();
+    this.InTransactionNode = new Set();
   }
 
   ngOnInit(): void {
     // setup transaction observers
-    this.transactionSub.push(this.transactionService.transactionArriving$.subscribe(node => {
+    this.transactionSub.push(this.transactionService.transactionArriving$.subscribe(userId => {
+      this.InTransactionNode.add(userId);
     }));
 
-    this.transactionSub.push(this.transactionService.transactionLeaving$.subscribe(node => {
+    this.transactionSub.push(this.transactionService.transactionLeaving$.subscribe(userId => {
+      this.InTransactionNode.delete(userId);
+      // console.log(userId);
     }));
 
     // put some nodes to start
@@ -95,7 +100,7 @@ export class GraphComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   handleAgent(id: number, r: number): void {
-    const action = r % id % 7;
+    const action = (r + id ) % 13;
     if (action === 1) {
       const transaction: Transaction = { writes: [id], reads: [id] };
       this.tree.search(id)?.create_transaction(transaction);
@@ -220,7 +225,19 @@ export class GraphComponent implements OnInit, OnDestroy, AfterViewInit {
             }
           },
           datalabels: {
-            color: '#745ced',
+            color: (context) => {
+              const labels = context.chart.data.labels;
+              if (labels) {
+                const label = labels[context.dataIndex];
+                const values = (label as any).split('|').map(Number);
+                for (let value of values) {
+                  if (this.InTransactionNode.has(value)) {
+                    return '#B100E8'; // Change color to red if the value is in the set
+                  }
+                }
+              }
+              return '#745ced'; // Default color
+            },
             backgroundColor: '#F4F6FC',
             borderColor: '#745ced',
             borderWidth: 2,

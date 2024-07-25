@@ -14,16 +14,6 @@ function process_transactions(transactions:Array<Transaction>){
   // console.log(output.toString());
 }
 
-//Use that map that you conveniently have, you fucking shithead to convert nodes to its ID
-// function transaction_is_arriving(node:BNode<any>){
-//   let transactionService: TransactionService = new TransactionService;
-//   transactionService.transactionIsArriving(node);
-// }
-// function transaction_is_leaving(node:BNode<any>){
-//   let transactionService: TransactionService = new TransactionService;
-//   transactionService.transactionIsLeaving(node);
-// }
-
 export class BNode<Data> {
   //Signals
   parent_changed(newParent:BNode<Data>){
@@ -46,11 +36,11 @@ export class BNode<Data> {
     this.maxDegree = maxDegree;
   }
 
-  transaction_is_arriving(node:BNode<any>){
-    this.transactionService.transactionIsArriving(node);
+  transaction_is_arriving(id: number){
+    this.transactionService.transactionIsArriving(id);
   }
-  transaction_is_leaving(node:BNode<any>){
-    this.transactionService.transactionIsLeaving(node);
+  transaction_is_leaving(id: number){
+    this.transactionService.transactionIsLeaving(id);
   }
 
   // Transactions
@@ -61,7 +51,7 @@ export class BNode<Data> {
   }
   // Called whenever a node receives a transaction
   private async _data_collection(transactions:Array<Transaction>):Promise<void>{
-    this.transaction_is_arriving(this);
+    this.transaction_is_arriving(this.thresholds[0]);
     await this.my_lock.acquire();
     try{
       let im_collecting = (this.all_cur_transactions.length === 0);
@@ -76,7 +66,7 @@ export class BNode<Data> {
   }
   // Called whenever a node bubbles up a transaction
   private async _bubble_up(){
-    this.transaction_is_leaving(this);
+    this.transaction_is_leaving(this.thresholds[0]);
     await this.my_lock.acquire();
     try{
       if (typeof this.parent === "undefined"){
