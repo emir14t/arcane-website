@@ -45,14 +45,21 @@ export class GraphComponent implements OnInit, OnDestroy, AfterViewInit {
 
   ngOnInit(): void {
     // setup transaction observers
-    this.transactionSub.push(this.transactionService.transactionArriving$.subscribe(userId => {
+    // this.transactionSub.push(this.transactionService.transactionArriving$.subscribe(userId => {
+    //   this.InTransactionNode.add(userId);
+    // }));
+    this.transactionService.transactionArriving$.subscribe(userId => {
       this.InTransactionNode.add(userId);
-    }));
+    });
 
-    this.transactionSub.push(this.transactionService.transactionLeaving$.subscribe(userId => {
+    this.transactionService.transactionLeaving$.subscribe(userId => {
       this.InTransactionNode.delete(userId);
-      // console.log(userId);
-    }));
+    });
+
+    // this.transactionSub.push(this.transactionService.transactionLeaving$.subscribe(userId => {
+    //   this.InTransactionNode.delete(userId);
+    //   // console.log(userId);
+    // }));
 
     // put some nodes to start
     this.initializeNodes();

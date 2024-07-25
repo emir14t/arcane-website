@@ -1,5 +1,6 @@
 import { AfterViewInit, Component, OnInit } from '@angular/core';
 import { Chart, LinearScale, PointElement, registerables } from 'chart.js';
+import { TransactionService } from 'src/app/services/transaction.service';
 
 Chart.register(...registerables, PointElement, LinearScale);
 
@@ -17,7 +18,7 @@ export class ChartComponent implements OnInit, AfterViewInit {
 
   chart!: Chart;
 
-  constructor() {
+  constructor(private transactionService: TransactionService) {
     this.data1 = Array(10).fill(0);
     this.data2 = Array(10).fill(1);
     this.data3 = Array(10).fill(2);
@@ -26,7 +27,11 @@ export class ChartComponent implements OnInit, AfterViewInit {
   }
 
   ngOnInit(): void {
-
+    this.transactionService.data$.subscribe(newData => {
+      if (this.chart) {
+        this.updateChart(newData);
+      }
+    });
   }
 
   ngAfterViewInit(): void {
@@ -34,6 +39,28 @@ export class ChartComponent implements OnInit, AfterViewInit {
     this.createGraphChart();
   }
 
+  updateChart(data: number[]): void {
+    if (this.chart) {
+      this.data1.push(data[0]);
+      this.data2.push(data[1]);
+      this.data3.push(data[2]);
+      this.data4.push(data[3]);
+  
+      if (this.data1.length > 10) { // Assuming you want to keep the size at 10
+        this.data1.shift();
+        this.data2.shift();
+        this.data3.shift();
+        this.data4.shift();
+      }
+  
+      this.chart.data.datasets[0].data = this.data1;
+      this.chart.data.datasets[1].data = this.data2;
+      this.chart.data.datasets[2].data = this.data3;
+      this.chart.data.datasets[3].data = this.data4;
+      this.chart.update();
+    }
+  }
+  
   createGraphChart(): void {
     if (this.chart) {
       this.chart.destroy(); 
