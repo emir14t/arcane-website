@@ -1,19 +1,20 @@
 import { Component, AfterViewInit, OnInit, OnDestroy } from '@angular/core';
 
 // chart import
-import { Chart, registerables } from 'chart.js';
-import { TreeController, EdgeLine } from 'chartjs-chart-graph';
+import { Chart, LinearScale, PointElement, registerables } from 'chart.js';
+import { TreeController, TreeChart, EdgeLine } from 'chartjs-chart-graph';
 import ChartDataLabels from 'chartjs-plugin-datalabels';
 import opacity from 'hex-color-opacity';
 
 // our own code import
 import { Node, ChartContainer, Transaction } from 'src/app/interface/interface';
 import { BNode } from '../class/b-tree';
-import { MAX_DEGREE } from 'src/app/constants';
+import { INITIAL_NODE_ID, MAX_DEGREE, NUMBER_OF_INITIAL_NODE, PROBABILITY_OF_ADDING_USER } from 'src/app/constants';
 import { TransactionService } from 'src/app/services/transaction.service';
+import { Subscription } from 'rxjs';
 // import { Transaction } from 'src/app/interface/interface';
 
-Chart.register(...registerables, TreeController, EdgeLine, ChartDataLabels);
+Chart.register(...registerables, TreeController, TreeChart, EdgeLine, PointElement, LinearScale, ChartDataLabels);
 
 @Component({
   selector: 'app-graph',
@@ -21,157 +22,178 @@ Chart.register(...registerables, TreeController, EdgeLine, ChartDataLabels);
   styleUrls: ['./graph.component.scss']
 })
 
-export class GraphComponent implements OnInit, OnDestroy, AfterViewInit{
+export class GraphComponent implements OnInit, OnDestroy, AfterViewInit {
 
-  // chart variables
-  nodes : Map<number, Node> = new Map<number, Node>();
-  intervalId : any;
-  chart : any;
-  chartCharacteristic : ChartContainer = {dataset:[], labels:[]};
+  // public variables
+  nodes: Map<number, Node>;
+  intervalId: any;
+  chart!: TreeChart;
+  chartCharacteristic: ChartContainer = { dataset: [], labels: [], edges: [] };
+  tree: BNode<number>;
+  usersID: Set<number>;
 
-  // tree variable 
-  tree : BNode<number>;
-  usersID : Set<number>;
+  // private variables
+  private transactionSub: Subscription[] = [];
 
-  constructor(private transactionService: TransactionService) { 
-    this.tree = new BNode(undefined, MAX_DEGREE);
-    this.usersID = new Set;
+  constructor(private transactionService: TransactionService) {
+    this.tree = new BNode(undefined, MAX_DEGREE, this.transactionService);
+    this.nodes = new Map<number, Node>();
+    this.usersID = new Set();
   }
 
-  ngOnInit() : void {
-    // set up observer for transaction
-    this.transactionService.transactionArriving$.subscribe(node => {
-      console.log('Transaction is arriving:', node.id);
-    });
+  ngOnInit(): void {
+    // setup transaction observers
+    this.transactionSub.push(this.transactionService.transactionArriving$.subscribe(node => {
+    }));
 
-    this.transactionService.transactionLeaving$.subscribe(node => {
-      console.log('Transaction is leaving:', node.id);
-    });
+    this.transactionSub.push(this.transactionService.transactionLeaving$.subscribe(node => {
+    }));
 
-    // set initial nodes
-    this.tree.insert_child(0, 0);
-    this.usersID.add(0);
-    for(let i = 25; i !=1; i--) {
-      let random = Math.random() * 10;
-      this.tree.insert_child(i, random);
-      this.usersID.add(i);
-    }
-    
-    // set the tick for making the simulation agent
-    this.intervalId = setInterval(() => {
-      const randomNumber = Math.floor(Math.random() * 100); // Generates a random number between 0 and 99
-      this.handleTick(randomNumber);
-    }, 1000);
+    // put some nodes to start
+    this.initializeNodes();
+    // setup tick frequency for user agents
+    this.intervalId = setInterval(() => this.handleTick(Math.floor(Math.random() * 100)), 1000);
   }
 
   ngOnDestroy(): void {
+    // Destroy all observers
     if (this.intervalId) {
       clearInterval(this.intervalId);
     }
+    this.transactionSub.forEach(sub => sub.unsubscribe());
   }
 
-  ngAfterViewInit() : void {
+  ngAfterViewInit(): void {
+    // create and render the initial graph
     this.nodes = this.tree.bnode_tree_to_node_map();
     this.updateChartCharacteristic();
     this.createGraphChart();
   }
 
-  handleTick(r : number) : void {
-    if(r <= 25){
+  private initializeNodes(): void {
+    this.tree.insert_child(INITIAL_NODE_ID, INITIAL_NODE_ID);
+    this.usersID.add(INITIAL_NODE_ID);
+    for (let i = 1; i <= NUMBER_OF_INITIAL_NODE; i++) {
+      let random = Math.random() * 10;
+      this.tree.insert_child(i, random);
+      this.usersID.add(i);
+    }
+  }
+
+  handleTick(randomNumber: number): void {
+    if (randomNumber <= PROBABILITY_OF_ADDING_USER) {
+      // get each second a different number of 3 numbers
       const timestamp = Math.trunc(Date.now() / 1000) % 10000;
-      this.tree.insert_child(timestamp, r);
+      this.tree.insert_child(timestamp, randomNumber);
       this.usersID.add(timestamp);
     }
-    this.usersID.forEach(n => {
-      this.handleAgent(n, r);
-    });
+
+    // making the user agent do a random actin
+    this.usersID.forEach(id => this.handleAgent(id, randomNumber));
     this.nodes = this.tree.bnode_tree_to_node_map();
     this.updateChart();
+
+    console.log(this.nodes.size, this.chartCharacteristic.dataset.length, 
+      this.chartCharacteristic.labels.length, this.chart.data.datasets[0].data.length, 
+      );
   }
 
-  handleAgent(n : number, r : number) : void {
-    const action : number =  r % n % 3;
-    switch(action) {
-      case 1:
-        // console.log("Transaction from: " + node.id);
-        // this.tree.create_transaction
-        const transaction : Transaction = {
-          writes: [],
-          reads: []
-        }
-        this.tree.search(n)?.create_transaction(transaction);
-        break;
-      case 2:
-        this.tree = this.tree.delete(n);
-        this.usersID.delete(n);
-        break;
-      case 3:
-        // console.log("Transaction from: " + node.id);
-        break;
-      default:
-        // do nothing
-        return;
-    } 
+  handleAgent(id: number, r: number): void {
+    const action = r % id % 7;
+    if (action === 1) {
+      const transaction: Transaction = { writes: [id], reads: [id] };
+      this.tree.search(id)?.create_transaction(transaction);
+    }
+    // Add other actions as needed
   }
 
-  updateChart(){
+  updateChart(): void {
     this.updateChartCharacteristic();
-    this.chart.config.data.labels = this.chartCharacteristic.labels;
-    this.chart.config.data.datasets.data = this.chartCharacteristic.dataset;
-    this.chart.options.scales.x.min = this.chartCharacteristic.minX;
-    this.chart.options.scales.x.max = this.chartCharacteristic.maxX;
-    this.chart.options.scales.y.max = this.chartCharacteristic.maxY;
-    this.chart.update();
+    // this.chart.data.labels = this.chartCharacteristic.labels;
+    // this.chart.data.datasets[0].data = this.chartCharacteristic.dataset;
+    // this.chart.data.datasets[0].edges = this.chartCharacteristic.edges;
+
+    // if(this.chart.options.scales !== undefined){
+    //   if (this.chart.options.scales['x'] !== undefined) {
+    //     this.chart.options.scales['x'].min = this.chartCharacteristic.minX;
+    //     this.chart.options.scales['x'].max = this.chartCharacteristic.maxX;
+    //   }
+    //   if (this.chart.options.scales['y'] !== undefined) {
+    //     this.chart.options.scales['y'].max = this.chartCharacteristic.maxY;
+    //   } 
+    // }
+    // this.chart.update();
+    this.createGraphChart();
   }
 
-  updateChartCharacteristic(){
+  updateChartCharacteristic(): void {
     const nodesArray = Array.from(this.nodes.values());
-  
-    // Calculate the maximum breath at each depth level
     const maxBreadthAtDepth: { [key: number]: number } = {};
-    nodesArray.forEach(node => {
-      if (!maxBreadthAtDepth[node.depth] || node.breadth > maxBreadthAtDepth[node.depth]) {
-        maxBreadthAtDepth[node.depth] = node.breadth;
+    const labels : string[] = [];
+    const edges : { source: number, target: number }[] = [];
+    let maxDepth = 0;
+
+    // loop and trough the node to get current characteristique of the graph
+    nodesArray.forEach((node, index) => {
+      // setup a max breath at every layer
+      maxBreadthAtDepth[node.depth] = Math.max(maxBreadthAtDepth[node.depth] || 0, node.breadth);
+      maxDepth = Math.max(maxDepth, node.depth);
+
+      // set the labels with the good format
+      labels.push(node.value.toString().replace(/,/g, '|'));
+      // set the edges at the good format
+      if(node.parent !== null && node.parent !== undefined){
+        const nodeArray : number[] = Array.from(this.nodes.keys());
+        const target :  number = nodeArray.indexOf(node.parent);
+        edges.push({source: index, target: target});
       }
     });
-  
-    // Calculate the maximum depth
-    const maxDepth = Math.max(...nodesArray.map(node => node.depth));
-  
-    // Calculate the offsets and scaling factors for each depth level
+
+    // set the chart labels and edges for the graph 
+    this.chartCharacteristic.labels = [...labels];
+    this.chartCharacteristic.edges = [...edges];
+
     const xOffsetAtDepth: { [key: number]: number } = {};
     const scalingFactorAtDepth: { [key: number]: number } = {};
+
+    // calculate scalling at every depth
     for (const depth in maxBreadthAtDepth) {
       const maxBreadth = maxBreadthAtDepth[depth];
       xOffsetAtDepth[depth] = maxBreadth / 2;
-      scalingFactorAtDepth[depth] = (1 - (parseInt(depth) / maxDepth)) * 0.5 + 0.5;
+      scalingFactorAtDepth[depth] = (1 - (+depth / maxDepth)) * 0.5 + 0.5;
     }
-  
-    // Create dataset with adjusted x positions
-    this.chartCharacteristic.dataset = nodesArray.map(node => ({
-      x: (node.breadth - xOffsetAtDepth[node.depth]) * scalingFactorAtDepth[node.depth],
-      y: node.depth
-    }));
-  
-    // Determine the overall min and max x values for scaling
-    this.chartCharacteristic.minX = Math.min(...this.chartCharacteristic.dataset.map(point => point.x));
-    this.chartCharacteristic.maxX = Math.max(...this.chartCharacteristic.dataset.map(point => point.x));
-    this.chartCharacteristic.maxY = Math.max(...this.chartCharacteristic.dataset.map(point => point.y));
 
-    // Determine the labels of each node
-    this.chartCharacteristic.labels = Array.from(this.nodes.values()).map(node => (node.value.toString().replace(/,/g, '|')));
+    // apply scalling at every depth to center the dataset and make it smooth
+    let minX = Infinity, maxX = -Infinity, maxY = -Infinity;
+    this.chartCharacteristic.dataset = nodesArray.map(node => {
+      const x = (node.breadth - xOffsetAtDepth[node.depth]) * scalingFactorAtDepth[node.depth];
+      const y = node.depth;
+  
+      minX = Math.min(minX, x);
+      maxX = Math.max(maxX, x);
+      maxY = Math.max(maxY, y);
+  
+      return { x, y };
+    });
+    
+    // setup chart limit for the view port 
+    this.chartCharacteristic.minX = minX;
+    this.chartCharacteristic.maxX = maxX;
+    this.chartCharacteristic.maxY = maxY;
   }
 
-  createGraphChart(): void {  
-    this.chart = new Chart('treeChart', {
+  createGraphChart(): void {
+    if (this.chart) {
+      this.chart.destroy(); 
+    }
+    this.chart =  new TreeChart('treeChart', {
       plugins: [ChartDataLabels],
-      type: 'tree',
       data: {
         labels: this.chartCharacteristic.labels,
         datasets: [{
           label: 'User Shard',
           data: this.chartCharacteristic.dataset,
-          edges: this.createEdges(),
+          edges: this.chartCharacteristic.edges,
           pointRadius: 1,
           pointBorderWidth: 0,
           borderWidth: 5,
@@ -179,6 +201,16 @@ export class GraphComponent implements OnInit, OnDestroy, AfterViewInit{
         }]
       },
       options: {
+        animation: false,
+        maintainAspectRatio: false,
+        layout: {
+          padding: {
+            top: 20,
+            bottom: 20,
+            left: 20,
+            right: 20
+          }
+        },
         plugins: {
           title: {
             display: true,
@@ -186,71 +218,51 @@ export class GraphComponent implements OnInit, OnDestroy, AfterViewInit{
             color: '#B100E8',
             font: {
               size: 24,
-              weight: 'bold',
+              weight: 'bold'
             },
+            padding: {
+              bottom: 40
+            }
           },
           datalabels: {
             color: '#745ced',
             backgroundColor: '#F4F6FC',
             borderColor: '#745ced',
             borderWidth: 2,
-            formatter: function(value, context) {
+            formatter: (value, context) => {
               const labels = context.chart.data.labels;
-              // Check if labels are defined and context.dataIndex is valid
-              if (labels && context.dataIndex < labels.length) {
-                  return labels[context.dataIndex];
-              }
-              // Return a default value if labels are undefined or dataIndex is out of bounds
-              return 'No Label';
+              return labels ? labels[context.dataIndex] : 'No Users';
             },
             font: {
               size: 12,
-              weight: 'bold',
-            },
+              weight: 'bold'
+            }
           },
           legend: {
-            display: false,
+            display: false
           }
         },
         scales: {
-          y: {
-            reverse: false,
-            min: 0,
-            max: this.chartCharacteristic.maxY ? this.chartCharacteristic.maxY * 1.05 : 0,
-          },
           x: {
-            // the 1.05 is a tamporary fix so that the label always display properly by giving 5% marging to the axis
-            min: this.chartCharacteristic.minX ? this.chartCharacteristic.minX * 1.05 : 0,
-            max: this.chartCharacteristic.maxX ? this.chartCharacteristic.maxX * 1.05 : 0,
-          }
-        },
-        layout: {
-          padding: {
-            left: 20,
-            top: 20,
-            bottom: 20,
-            right: 20,
+            display: true,
+            min: this.chartCharacteristic.minX,
+            max: this.chartCharacteristic.maxX,
+            ticks: {
+              autoSkip: true,
+              maxTicksLimit: 10
+            }
           },
-        },
+          y: {
+            display: true,
+            min: 0,
+            max: this.chartCharacteristic.maxY,
+            ticks: {
+              autoSkip: true,
+              maxTicksLimit: 10
+            }
+          }
+        }
       }
     });
-  }
-  
-  createEdges(): { source: number, target: number }[] {
-
-    const edges : { source: number, target: number }[] = [];
-    const nodeArray = Array.from(this.nodes.values());
-    const keysArray : number[] = Array.from(this.nodes.keys());
-
-    // Iterate over each node
-    nodeArray.forEach((node) => {
-      const sourceIndex = keysArray.indexOf(node.id);
-
-      // Add edge for parent node (if it exists)
-      if (node.parent !== null && this.nodes.get(node.parent)) {
-        edges.push({ source: sourceIndex, target: keysArray.indexOf(node.parent) });
-      }
-    });
-    return edges;
   }
 }

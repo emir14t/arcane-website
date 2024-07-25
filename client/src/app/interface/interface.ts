@@ -9,16 +9,14 @@ export interface Node {
 export interface ChartContainer {
     labels: string[],
     dataset: any[],
+    edges : { source: number, target: number }[],
     minX ?: number,
     maxX ?: number,
     maxY?: number,
 }
 
 export interface Transaction{
-    // writes:Map<number, any>,
-    // reads:Map<number, any>
     writes: any[],
     reads: any[]
-
 }
   

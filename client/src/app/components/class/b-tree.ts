@@ -7,27 +7,22 @@ type Key = number;
 type Nullable<K> = undefined | K;
 
 function process_transactions(transactions:Array<Transaction>){
-  // console.log("Transaction Arrived");
   let output:Array<String> = [];
-  // for (let i = 0; i < transactions.length; i++){
-  //   output.push(transactions[i].writes.keys().next().value)
-  // }
   transactions.forEach((t) => {
     output.push(`transaction : w => ${t.reads.toString()}, r => ${t.writes.toString()}`);
   })
-  // console.log("--->" + output.join(' '));
-  console.log(output.toString());
+  // console.log(output.toString());
 }
 
 //Use that map that you conveniently have, you fucking shithead to convert nodes to its ID
-function transaction_is_arriving(node:BNode<any>){
-  let transactionService: TransactionService = new TransactionService;
-  transactionService.transactionIsArriving(node);
-}
-function transaction_is_leaving(node:BNode<any>){
-  let transactionService: TransactionService = new TransactionService;
-  transactionService.transactionIsLeaving(node);
-}
+// function transaction_is_arriving(node:BNode<any>){
+//   let transactionService: TransactionService = new TransactionService;
+//   transactionService.transactionIsArriving(node);
+// }
+// function transaction_is_leaving(node:BNode<any>){
+//   let transactionService: TransactionService = new TransactionService;
+//   transactionService.transactionIsLeaving(node);
+// }
 
 export class BNode<Data> {
   //Signals
@@ -43,12 +38,19 @@ export class BNode<Data> {
   private maxDegree:number = -1;
 
   // Constructor
-  constructor(parent:Nullable<BNode<Data>>, maxDegree:number){
+  constructor(parent:Nullable<BNode<Data>>, maxDegree:number, private transactionService: TransactionService){
     //Initialization
     if (maxDegree < 2){throw new Error("Disallowed initialization");}
 
     this.parent = parent;
     this.maxDegree = maxDegree;
+  }
+
+  transaction_is_arriving(node:BNode<any>){
+    this.transactionService.transactionIsArriving(node);
+  }
+  transaction_is_leaving(node:BNode<any>){
+    this.transactionService.transactionIsLeaving(node);
   }
 
   // Transactions
@@ -59,7 +61,7 @@ export class BNode<Data> {
   }
   // Called whenever a node receives a transaction
   private async _data_collection(transactions:Array<Transaction>):Promise<void>{
-    transaction_is_arriving(this);
+    this.transaction_is_arriving(this);
     await this.my_lock.acquire();
     try{
       let im_collecting = (this.all_cur_transactions.length === 0);
@@ -74,7 +76,7 @@ export class BNode<Data> {
   }
   // Called whenever a node bubbles up a transaction
   private async _bubble_up(){
-    transaction_is_leaving(this);
+    this.transaction_is_leaving(this);
     await this.my_lock.acquire();
     try{
       if (typeof this.parent === "undefined"){
@@ -227,7 +229,7 @@ export class BNode<Data> {
   private _split_node_wrapper(userID:Key):(BNode<Data>|undefined){
     //This handles the edge cases before asking parent to split this BNode
     if (typeof this.parent === "undefined"){
-      let tmpParent:BNode<Data> = new BNode(undefined, this.maxDegree);
+      let tmpParent:BNode<Data> = new BNode(undefined, this.maxDegree, this.transactionService);
       tmpParent.children.push(this);
       this.parent = tmpParent;
       this.parent_changed(tmpParent);
@@ -238,7 +240,7 @@ export class BNode<Data> {
   }
   private _split_node(userID:Key, childBNode:BNode<Data>):(BNode<Data>|undefined){
     //Assuming that childBNode.parent === this
-    let newBNode:BNode<Data> = new BNode<Data>(this, this.maxDegree);
+    let newBNode:BNode<Data> = new BNode<Data>(this, this.maxDegree, this.transactionService);
     let sizePartition1:number = Math.floor(childBNode.thresholds.length/2);
     let keyToPromote:Key = childBNode.thresholds[sizePartition1];
     let dataToPromote:Data = childBNode.datas[sizePartition1];
