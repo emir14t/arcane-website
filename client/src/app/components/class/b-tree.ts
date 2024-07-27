@@ -501,9 +501,45 @@ export class BNode<Data> {
     return this;
   }
   // Case II.1
-  
+  private _internal_handler(index_of_data:Key):BNode<Data>{
+    if (index_of_data - 1 >= 0){
+      if (this.children[index_of_data - 1].thresholds.length > this.minNumberOfThresholds){
+        let left_inorder = this.children[index_of_data - 1]
+        while (left_inorder.children.length !== 0){
+          left_inorder = left_inorder.children[this.children.length - 1]
+        }
+        return this._internal_left_promote(left_inorder, index_of_data)
+      }
+    }
 
-  private _delete_wrapper(userID:Key, index:number):BNode<Data>{
+    if (index_of_data + 1 < this.children.length){
+      if (this.children[index_of_data + 1].thresholds.length > this.minNumberOfThresholds){
+        let right_inorder = this.children[index_of_data + 1]
+        while (right_inorder.children.length !== 0){
+          right_inorder = right_inorder.children[0]
+        }
+        return this._internal_right_promote(right_inorder, index_of_data)
+      }
+    }
+
+    throw new Error("Oh no")
+  }
+  private _internal_left_promote(inorder_leaf:BNode<Data>, index_of_data:Key):BNode<Data>{
+    let index = inorder_leaf.datas.length - 1;
+    let tmp_data = inorder_leaf.datas[index]
+    let tmp_key = inorder_leaf.thresholds[index]
+
+    inorder_leaf._delete_wrapper(index)
+    
+  }
+  private _internal_right_promote(inorder_leaf:BNode<Data>, index_of_data:Key):BNode<Data>{
+    
+  }
+  private _internal_merge(index_of_data:Key){
+    
+  }
+
+  private _delete_wrapper(index:number):BNode<Data>{
     //Assuming that userID is present in this.children
     //Assuming that children[index] == userID
     //Case 1: Leaf
