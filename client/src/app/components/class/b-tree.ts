@@ -44,16 +44,18 @@ export class BNode<Data> {
   private children:Array<BNode<Data>> = [];
   private thresholds:Array<Key> = new Array<Key>();
   private datas:Array<Data> = new Array<Data>();
-  private maxDegree:number = -1;
+  private maxNumberOfThresholds:number = -1;
+  private minNumberOfThresholds:number = -1;
 
   // Constructor
   
-  constructor(parent:Nullable<BNode<Data>>, maxDegree:number){ //, private transactionService: TransactionService
+  constructor(parent:Nullable<BNode<Data>>, maxNumberOfThresholds:number){ //, private transactionService: TransactionService
     //Initialization
-    if (maxDegree < 2){throw new Error("Disallowed initialization");}
+    if (maxNumberOfThresholds < 2){throw new Error("Disallowed initialization");}
 
     this.parent = parent;
-    this.maxDegree = maxDegree;
+    this.maxNumberOfThresholds = maxNumberOfThresholds;
+    this.minNumberOfThresholds = Math.ceil((maxNumberOfThresholds + 1)/2) - 1
   }
 
   transaction_is_arriving(id: number){
@@ -228,7 +230,7 @@ export class BNode<Data> {
     }
 
     //Check if we have to split
-    if (this.thresholds.length > this.maxDegree){
+    if (this.thresholds.length > this.maxNumberOfThresholds){
       if (!this.thresholds.includes(userID)){
         throw new Error("Threshold doesn't show that we've added the user");
       }
@@ -239,7 +241,7 @@ export class BNode<Data> {
   private _split_node_wrapper(userID:Key):(BNode<Data>|undefined){
     //This handles the edge cases before asking parent to split this BNode
     if (typeof this.parent === "undefined"){
-      let tmpParent:BNode<Data> = new BNode(undefined, this.maxDegree); //, this.transactionService
+      let tmpParent:BNode<Data> = new BNode(undefined, this.maxNumberOfThresholds); //, this.transactionService
       tmpParent.children.push(this);
       this.parent = tmpParent;
       this.parent_changed(tmpParent);
@@ -250,7 +252,7 @@ export class BNode<Data> {
   }
   private _split_node(userID:Key, childBNode:BNode<Data>):(BNode<Data>|undefined){
     //Assuming that childBNode.parent === this
-    let newBNode:BNode<Data> = new BNode<Data>(this, this.maxDegree); //, this.transactionService
+    let newBNode:BNode<Data> = new BNode<Data>(this, this.maxNumberOfThresholds); //, this.transactionService
     let sizePartition1:number = Math.floor(childBNode.thresholds.length/2);
     let keyToPromote:Key = childBNode.thresholds[sizePartition1];
     let dataToPromote:Data = childBNode.datas[sizePartition1];
@@ -313,7 +315,7 @@ export class BNode<Data> {
     }
 
     //Check if we have to split
-    if (this.thresholds.length > this.maxDegree){
+    if (this.thresholds.length > this.maxNumberOfThresholds){
       let ans:(BNode<Data> | undefined) = this._split_node_wrapper(userID);
       if (newBNode.thresholds.includes(userID)){
         return newBNode;
@@ -393,6 +395,60 @@ export class BNode<Data> {
     }
     return this.parent._delete_up(userID);
   }
+  private _leaf_borrow(index_of_child:Key, index_of_data_in_child:Key):BNode<Data>{
+    // Assuming that all children are leaves and that the data to be delete is in this.children[index_of_child][index_of_data_in_child]
+    let left_child:Nullable<BNode<Data>> = (index_of_child - 1 < 0) ? undefined : this.children[index_of_child - 1];
+    if (typeof left_child !== "undefined"){
+      let left_child_count = left_child.thresholds.length;
+      if (left_child_count > this.minNumberOfThresholds){
+        return this._leaf_left_borrow(index_of_child, index_of_data_in_child)
+      }
+    }
+    let right_child:Nullable<BNode<Data>> = (index_of_child + 1 >= this.children.length) ? undefined : this.children[index_of_child + 1];
+    if (typeof right_child !== "undefined"){
+      let right_child_count = right_child.thresholds.length;
+      if (right_child_count > this.minNumberOfThresholds){
+        return this._leaf_right_borrow(index_of_child, index_of_data_in_child)
+      }
+    }
+
+    throw new Error("Catchable, but try case 3")
+  }
+  private _leaf_left_borrow(index_of_child:Key, index_of_data_in_child:Key):BNode<Data>{
+    let child_with_data:BNode<Data> = this.children[index_of_child];
+    let left_child:BNode<Data> = this.children[index_of_child - 1];
+
+    let key_to_move:Key = left_child.thresholds.pop() as Key
+    let data_to_move:Data = left_child.datas.pop() as Data
+
+    let tmp_key:Key = this.thresholds[index_of_child];
+    let tmp_data:Data = this.datas[index_of_child];
+
+    this.thresholds[index_of_child] = key_to_move;
+    this.datas[index_of_child] = data_to_move;
+    child_with_data.thresholds[index_of_data_in_child] = tmp_key;
+    child_with_data.datas[index_of_data_in_child] = tmp_data;
+
+    return this;
+  }
+  private _leaf_right_borrow(index_of_child:Key, index_of_data_in_child:Key):BNode<Data>{
+    let child_with_data:BNode<Data> = this.children[index_of_child];
+    let right_child:BNode<Data> = this.children[index_of_child + 1];
+
+    let key_to_move:Key = right_child.thresholds.pop() as Key
+    let data_to_move:Data = right_child.datas.pop() as Data
+
+    let tmp_key:Key = this.thresholds[index_of_child - 1];
+    let tmp_data:Data = this.datas[index_of_child - 1];
+
+    this.thresholds[index_of_child] = key_to_move;
+    this.datas[index_of_child] = data_to_move;
+    child_with_data.thresholds[index_of_data_in_child] = tmp_key;
+    child_with_data.datas[index_of_data_in_child] = tmp_data;
+
+    return this;
+  }
+
   private _delete_wrapper(userID:Key, index:number):BNode<Data>{
     //Assuming that userID is present in this.children
     //Assuming that children[index] == userID
@@ -401,7 +457,7 @@ export class BNode<Data> {
       this.datas.splice(index, 1);
       this.thresholds.splice(index, 1);
 
-      if (this.datas.length < this.maxDegree / 2){
+      if (this.datas.length < this.maxNumberOfThresholds / 2){
         if (typeof this.parent == "undefined"){
           return this;
         }
@@ -415,14 +471,14 @@ export class BNode<Data> {
 
     //Case 2: No leaf
     //Case 2.a: Compression
-    if (leftChild.thresholds.length + rightChild.thresholds.length < this.maxDegree){
+    if (leftChild.thresholds.length + rightChild.thresholds.length < this.maxNumberOfThresholds){
       this.children.splice(index + 1, 1);
       this.datas.splice(index, 1);
       this.thresholds.splice(index, 1);
 
       this._merge_nodes(leftChild, rightChild);
 
-      if (this.datas.length < this.maxDegree / 2){
+      if (this.datas.length < this.maxNumberOfThresholds / 2){
         if (typeof this.parent == "undefined"){
           return this;
         }
@@ -447,7 +503,7 @@ export class BNode<Data> {
       this.thresholds[index] = thresholdToRem;
       this.datas[index] = dataToRem;
       
-      if (this.datas.length < this.maxDegree / 2){
+      if (this.datas.length < this.maxNumberOfThresholds / 2){
         if (typeof this.parent == "undefined"){
           return this;
         }
@@ -470,7 +526,7 @@ export class BNode<Data> {
       this.thresholds[index] = thresholdToRem;
       this.datas[index] = dataToRem;
       
-      if (this.datas.length < this.maxDegree / 2){
+      if (this.datas.length < this.maxNumberOfThresholds / 2){
         if (typeof this.parent == "undefined"){
           return this;
         }
@@ -492,7 +548,7 @@ export class BNode<Data> {
     let rightChild = BNode2.children[0];
 
     //Case 1: We have to keep merging
-    if (leftChild.thresholds.length + rightChild.thresholds.length < this.maxDegree){
+    if (leftChild.thresholds.length + rightChild.thresholds.length < this.maxNumberOfThresholds){
       BNode1.thresholds = BNode1.thresholds.concat(BNode2.thresholds);
       BNode1.datas = BNode1.datas.concat(BNode2.datas);
       BNode2.children.shift();
@@ -547,7 +603,7 @@ export class BNode<Data> {
     }
   }
   private _balance_tree(changedBNode:BNode<Data>):BNode<Data>{
-    if (changedBNode.thresholds.length >= Math.floor(this.maxDegree / 2)){
+    if (changedBNode.thresholds.length >= Math.floor(this.maxNumberOfThresholds / 2)){
       return this;
     }
 
@@ -571,7 +627,7 @@ export class BNode<Data> {
     for (let child of this.children){
       total += child.thresholds.length;
     }
-    if (total <= this.maxDegree){
+    if (total <= this.maxNumberOfThresholds){
       let iter = this.thresholds.length;
       for (let i = iter; i >= 0; i--){
         this.thresholds.splice(i, 0, ...this.children[i].thresholds);
@@ -587,7 +643,7 @@ export class BNode<Data> {
         child.parent = this;
       }
 
-      if ((typeof this.parent !== "undefined") && (total < (this.maxDegree / 2))){
+      if ((typeof this.parent !== "undefined") && (total < (this.maxNumberOfThresholds / 2))){
         return (this.parent as BNode<Data>)._balance_tree(this);
       }
       return this;
@@ -598,7 +654,7 @@ export class BNode<Data> {
     if (index - 1 >= 0){
       let child = this.children[index-1];
       let child2 = this.children[index];
-      if (child.thresholds.length > Math.floor(this.maxDegree / 2) + 1){
+      if (child.thresholds.length > Math.floor(this.maxNumberOfThresholds / 2) + 1){
         let tmpIndex = child.thresholds.length - 1;
 
         let tmpKey = child.thresholds[tmpIndex];
@@ -627,7 +683,7 @@ export class BNode<Data> {
     if (index + 1 < this.children.length){
       let child = this.children[index+1];
       let child2 = this.children[index];
-      if (child.thresholds.length > Math.floor(this.maxDegree / 2) + 1){
+      if (child.thresholds.length > Math.floor(this.maxNumberOfThresholds / 2) + 1){
         let tmpKey = child.thresholds[0];
         let tmpData = child.datas[0];
         child.thresholds.shift();
@@ -654,7 +710,7 @@ export class BNode<Data> {
     // Case 1: Compress
     // If the left child exists
     if (index - 1 >= 0){
-      if (this.children[index-1].thresholds.length + this.children[index].thresholds.length < this.maxDegree){
+      if (this.children[index-1].thresholds.length + this.children[index].thresholds.length < this.maxNumberOfThresholds){
         let child = this.children[index - 1];
         let child2 = this.children.splice(index, 1)[0];
         let tmpKey = this.thresholds.splice(index-1, 1)[0];
@@ -677,7 +733,7 @@ export class BNode<Data> {
     }
     // If the right child exists
     if (index + 1 < this.children.length){
-      if (this.children[index].thresholds.length + this.children[index+1].thresholds.length < this.maxDegree){
+      if (this.children[index].thresholds.length + this.children[index+1].thresholds.length < this.maxNumberOfThresholds){
         let child = this.children[index];
         let child2 = this.children.splice(index+1, 1)[0];
         let tmpKey = this.thresholds.splice(index, 1)[0];
@@ -709,7 +765,7 @@ export class BNode<Data> {
     //Validate lengths
     if (this.datas.length !== this.thresholds.length) {throw new Error("Datas and Threshold lengths are inconsistent");}
     if (this.children.length !== 0 && this.datas.length !== (this.children.length - 1)) {throw new Error("Children lengths are inconsistent");}
-    if (typeof this.parent !== "undefined" && this.datas.length < Math.floor(this.maxDegree / 2)) {throw new Error("Tree has nodes with less than the minimum amount of nodes ");}
+    if (typeof this.parent !== "undefined" && this.datas.length < Math.floor(this.maxNumberOfThresholds / 2)) {throw new Error("Tree has nodes with less than the minimum amount of nodes ");}
     
     //Validate ordering
     for (let i:number = 0; i < this.thresholds.length - 1; i++){
@@ -1076,7 +1132,7 @@ export class Testing{
       cur.validate_tree()
     }
   }
-  
+
   test_bnode_tree_to_node_map(){
     let cur:BNode<Array<string>> = new BNode(undefined, 5);
   
