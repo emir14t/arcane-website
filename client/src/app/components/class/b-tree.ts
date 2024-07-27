@@ -14,6 +14,7 @@ export interface Transaction{
   writes: any[],
   reads: any[]
 }
+
 export const BUBBLE_UP_WAIT_TIME:number = 500;   // How long(ms) does each node wait for more transactions before bubbleling up
 export const TRANSACTION_WAIT_TIME:number = 30; // How long(ms) does each node wait before sending the data to his parent (applies after bubble up wait time)
 
@@ -33,14 +34,11 @@ export class User{
 
 }
 export class BNode<Data> {
-  // Signals 
-  transaction_is_arriving(id: number){
-    // this.transactionService.transactionIsArriving(id);
+  //Signals
+  parent_changed(newParent:BNode<Data>){
+    //console.log("Root has changed!");
   }
-  transaction_is_leaving(id: number){
-    // this.transactionService.transactionIsLeaving(id);
-  }
-
+  
   // Data
   private parent:Nullable<BNode<Data>>;
   private children:Array<BNode<Data>> = [];
@@ -48,25 +46,32 @@ export class BNode<Data> {
   private datas:Array<Data> = new Array<Data>();
   private maxNumberOfThresholds:number = -1;
   private minNumberOfThresholds:number = -1;
-  // private transactionService:TransactionService;
 
   // Constructor
-  constructor(parent:Nullable<BNode<Data>>, maxNumberOfThresholds:number){ //, transactionService:TransactionService
+  
+  constructor(parent:Nullable<BNode<Data>>, maxNumberOfThresholds:number){ //, private transactionService: TransactionService
     //Initialization
     if (maxNumberOfThresholds < 2){throw new Error("Disallowed initialization");}
 
     this.parent = parent;
     this.maxNumberOfThresholds = maxNumberOfThresholds;
     this.minNumberOfThresholds = Math.floor((maxNumberOfThresholds)/2)
-    // this.transactionService = transactionService;
   }
 
-  // Transaction handleling
+  transaction_is_arriving(id: number){
+    // this.transactionService.transactionIsArriving(id);
+  }
+  transaction_is_leaving(id: number){
+    // this.transactionService.transactionIsLeaving(id);
+  }
+
+  // Transactions
   private my_lock = new Mutex();
   private all_cur_transactions:Array<Transaction> = []
   async create_transaction(transaction:Transaction){
     this._data_collection([transaction]);
   }
+  // Called whenever a node receives a transaction
   private async _data_collection(transactions:Array<Transaction>):Promise<void>{
     this.transaction_is_arriving(this.thresholds[0]);
     await this.my_lock.acquire();
@@ -81,6 +86,7 @@ export class BNode<Data> {
       this.my_lock.release();
     }
   }
+  // Called whenever a node bubbles up a transaction
   private async _bubble_up(){
     this.transaction_is_leaving(this.thresholds[0]);
     await this.my_lock.acquire();
@@ -235,9 +241,10 @@ export class BNode<Data> {
   private _split_node_wrapper(userID:Key):(BNode<Data>|undefined){
     //This handles the edge cases before asking parent to split this BNode
     if (typeof this.parent === "undefined"){
-      let tmpParent:BNode<Data> = new BNode(undefined, this.maxNumberOfThresholds) //, this.transactionService
+      let tmpParent:BNode<Data> = new BNode(undefined, this.maxNumberOfThresholds); //, this.transactionService
       tmpParent.children.push(this);
       this.parent = tmpParent;
+      this.parent_changed(tmpParent);
       return tmpParent._split_node(userID, this);
     }
 
@@ -341,6 +348,7 @@ export class BNode<Data> {
       let tmpParent:BNode<Data> = new BNode(undefined, this.maxNumberOfThresholds); //, this.transactionService
       tmpParent.children.push(this);
       this.parent = tmpParent;
+      this.parent_changed(tmpParent);
       return tmpParent._split_node_nr(this);
     }
 
@@ -493,49 +501,8 @@ export class BNode<Data> {
     let leftChild:BNode<Data> = this.children[index];
     let rightChild:BNode<Data> = this.children[index + 1];
 
-    //Case 2.a: Rotation
-    //Case 2.aa: Left child has more entries
-    let childToDeleteFrom = this._can_promote_left(leftChild);
-    if (typeof childToDeleteFrom !== "undefined"){
-      this._promote_left(childToDeleteFrom, index);
-    }
-
-    //Case 2.ab: Right child has more (or equal) entries
-    childToDeleteFrom = this._can_promote_right(rightChild)
-    if (typeof childToDeleteFrom !== "undefined"){
-      this._promote_right(childToDeleteFrom, index);
-    }
-
-    //Case 2.b: Compression
-    if (leftChild.thresholds.length + rightChild.thresholds.length <= this.maxNumberOfThresholds){
-      this.children.splice(index + 1, 1);
-      this.datas.splice(index, 1);
-      this.thresholds.splice(index, 1);
-  
-      this._naive_merge(leftChild, rightChild);
-      return this._test_balance()    }
-
-    throw new Error("Unresolved here");
-  }
-  private _can_promote_right(rightChild:BNode<Data>):Nullable<BNode<Data>>{
-    let childToDeleteFrom = rightChild;
-    let possible = false;
-    while(childToDeleteFrom.children.length !== 0){
-      if (childToDeleteFrom.thresholds.length > this.minNumberOfThresholds){
-        possible = true;
-      }
-      childToDeleteFrom = childToDeleteFrom.children[0];
-    }
-    if (childToDeleteFrom.thresholds.length > this.minNumberOfThresholds){
-      possible = true;
-    }
-
-    if (possible){
-      return childToDeleteFrom;
-    }
-    return undefined;
-  }
-  private _can_promote_left(leftChild:BNode<Data>):Nullable<BNode<Data>>{
+    //Case 2.b: Rotation
+    //Case 2.ba: Left child has more entries
     let childToDeleteFrom = leftChild;
     let possible = false;
     while(childToDeleteFrom.children.length !== 0){
@@ -547,34 +514,90 @@ export class BNode<Data> {
     if (childToDeleteFrom.thresholds.length > this.minNumberOfThresholds){
       possible = true;
     }
-
     if (possible){
-      return childToDeleteFrom;
+      let indexToRem:number = childToDeleteFrom.thresholds.length - 1;
+      let thresholdToRem:Key = childToDeleteFrom.thresholds[indexToRem];
+      let dataToRem:Data = childToDeleteFrom.datas[indexToRem];
+
+      childToDeleteFrom._delete_wrapper(indexToRem);
+
+      this.thresholds[index] = thresholdToRem;
+      this.datas[index] = dataToRem;
+      
+      if (this.datas.length < this.minNumberOfThresholds){
+        if (typeof this.parent == "undefined"){
+          return this;
+        }
+        return (this.parent as BNode<Data>)._balance_tree(this);
+      }
+      return this;
     }
-    return undefined;
+
+    //Case 2.bb: Right child has more (or equal) entries
+    childToDeleteFrom = rightChild;
+    possible = false;
+    while(childToDeleteFrom.children.length !== 0){
+      if (childToDeleteFrom.thresholds.length > this.minNumberOfThresholds){
+        possible = true;
+      }
+      childToDeleteFrom = childToDeleteFrom.children[0];
+    }
+    if (childToDeleteFrom.thresholds.length > this.minNumberOfThresholds){
+      possible = true;
+    }
+    if (possible){
+      let thresholdToRem:Key = childToDeleteFrom.thresholds[0];
+      let dataToRem:Data = childToDeleteFrom.datas[0];
+
+      childToDeleteFrom._delete_wrapper(0);
+
+      this.thresholds[index] = thresholdToRem;
+      this.datas[index] = dataToRem;
+      
+      if (this.datas.length < this.minNumberOfThresholds){
+        if (typeof this.parent == "undefined"){
+          return this;
+        }
+        return (this.parent as BNode<Data>)._balance_tree(this);
+      }
+      return this;
+    }
+
+    //Case 2.a: Compression
+    if (leftChild.thresholds.length + rightChild.thresholds.length < this.maxNumberOfThresholds){
+      this.children.splice(index + 1, 1);
+      this.datas.splice(index, 1);
+      this.thresholds.splice(index, 1);
+
+      this._stupid_merge(leftChild, rightChild);
+
+      if (this.datas.length < this.minNumberOfThresholds){
+        if (typeof this.parent == "undefined"){
+          return this;
+        }
+        return (this.parent as BNode<Data>)._balance_tree(this);
+      }
+      return this;
+    }
+    else if ((leftChild.thresholds.length + rightChild.thresholds.length) === this.maxNumberOfThresholds){
+      this.children.splice(index + 1, 1);
+      this.datas.splice(index, 1);
+      this.thresholds.splice(index, 1);
+
+      this._stupid_merge(leftChild, rightChild);
+
+      if (this.datas.length < this.minNumberOfThresholds){
+        if (typeof this.parent == "undefined"){
+          return this;
+        }
+        return (this.parent as BNode<Data>)._balance_tree(this);
+      }
+      return this;
+    }
+    throw new Error("Unresolved here");
   }
-  private _promote_right(childToDeleteFrom:BNode<Data>, index:number){
-    let thresholdToRem:Key = childToDeleteFrom.thresholds[0];
-    let dataToRem:Data = childToDeleteFrom.datas[0];
 
-    childToDeleteFrom._delete_wrapper(0);
-
-    this.thresholds[index] = thresholdToRem;
-    this.datas[index] = dataToRem;
-    return this._test_balance()
-  }
-  private _promote_left(childToDeleteFrom:BNode<Data>, index:number){
-    let indexToRem:number = childToDeleteFrom.thresholds.length - 1;
-    let thresholdToRem:Key = childToDeleteFrom.thresholds[indexToRem];
-    let dataToRem:Data = childToDeleteFrom.datas[indexToRem];
-
-    childToDeleteFrom._delete_wrapper(indexToRem);
-
-    this.thresholds[index] = thresholdToRem;
-    this.datas[index] = dataToRem;
-    return this._test_balance()
-  }
-  private _naive_merge(BNode1:BNode<Data>, BNode2:BNode<Data>):void{
+  private _stupid_merge(BNode1:BNode<Data>, BNode2:BNode<Data>){
     if (BNode1.children.length === 0){
       BNode1.datas.push(...BNode2.datas)
       BNode1.thresholds.push(...BNode2.thresholds)
@@ -591,16 +614,7 @@ export class BNode<Data> {
       child.parent = BNode1;
     }
 
-    this._naive_merge(left, right);
-  }
-  private _test_balance(){
-    if (this.thresholds.length < this.minNumberOfThresholds){
-      if (typeof this.parent == "undefined"){
-        return this;
-      }
-      return (this.parent as BNode<Data>)._balance_tree(this);
-    }
-    return this;
+    this._stupid_merge(left, right);
   }
   private _balance_tree(changedBNode:BNode<Data>):BNode<Data>{
     if (changedBNode.thresholds.length >= this.minNumberOfThresholds){
@@ -900,7 +914,7 @@ export class BNode<Data> {
     return retMap;
   }
   
-  // Has (used for tests)
+  // Helpers
   has(userID:Key){
     return this.thresholds.includes(userID);
   }
@@ -928,7 +942,6 @@ export class Testing{
     this.deleteTest002();
     this.deleteTest003();
     this.deleteTest004();
-
     console.log("Works");
   }
 
@@ -1083,20 +1096,23 @@ export class Testing{
   }
   deleteTest004(){
     let set:Array<Key> = [];
-    let cur:BNode<string> = new BNode(undefined, 4);
+    let cur:BNode<string> = new BNode(undefined, 6);
     
-    let empty = false;
-    for(let i = 0; i < 10000; i++){
-      if (empty){
-        if (set.length === 1){
-          empty = false;
-        }
+    let empty_all = false
+    for(let i = 0; i < 20000; i++){
+      if (set.length === 0){
+        empty_all = false;
+      }
+      if (empty_all === true){
         let random_index:number = Math.floor(Math.random() * set.length)
         cur = cur.delete(set[random_index])
         set.splice(random_index,1);
+        continue;
       }
       if (set.length > 1000){
-        empty = true;
+        empty_all = true
+        console.log("Emptying")
+        continue;
       }
       else if (set.length < 2){
         let random_number = Math.floor(Math.random() * 100000)
@@ -1117,16 +1133,16 @@ export class Testing{
         }
         else{
           let random_index:number = Math.floor(Math.random() * set.length)
-          // console.log("deleting " + set[random_index]);
           cur = cur.delete(set[random_index])
           set.splice(random_index,1);
         }
       }
       // cur.print_tree()
       cur.validate_tree()
-      console.log(set.length)
+      // console.log(set.length)
     }
-    
+    // console.log(set.length)
+    // cur.print_tree()
   }
 
   test_bnode_tree_to_node_map(){
