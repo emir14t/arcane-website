@@ -395,6 +395,13 @@ export class BNode<Data> {
     }
     return this.parent._delete_up(userID);
   }
+  // Case I.1
+  private _leaf_naive_delete(index_of_data:number){
+    // Assuming that we can
+    this.datas.splice(index_of_data, 1)
+    this.thresholds.splice(index_of_data, 1)
+  }
+  // Case I.2
   private _leaf_borrow(index_of_child:Key, index_of_data_in_child:Key):BNode<Data>{
     // Assuming that all children are leaves and that the data to be delete is in this.children[index_of_child][index_of_data_in_child]
     let left_child:Nullable<BNode<Data>> = (index_of_child - 1 < 0) ? undefined : this.children[index_of_child - 1];
@@ -448,6 +455,53 @@ export class BNode<Data> {
 
     return this;
   }
+  // Case I.3
+  private _leaf_merge(index_of_child:Key, index_of_data_in_child:Key):BNode<Data>{
+    if (index_of_child - 1 > 0){
+      return this._leaf_merge_left(index_of_child, index_of_data_in_child)
+    }
+    else{
+      return this._leaf_merge_right(index_of_child, index_of_data_in_child)
+    }
+  }
+  private _leaf_merge_left(index_of_child:Key, index_of_data_in_child:Key):BNode<Data>{
+    let to_merge = this.children[index_of_child - 1]
+    let child = this.children[index_of_child]
+
+    child.datas.splice(index_of_data_in_child, 1)
+    child.thresholds.splice(index_of_data_in_child, 1)
+    
+    let tmp_data = this.datas.splice(index_of_child - 1, 1)[0]
+    let tmp_thresholds = this.thresholds.splice(index_of_child - 1, 1)[0]
+    this.children.splice(index_of_child, 1)
+
+    to_merge.datas.push(tmp_data);
+    to_merge.datas.push(...child.datas);
+    to_merge.thresholds.push(tmp_thresholds);
+    to_merge.thresholds.push(...child.thresholds);
+
+    return this;
+  }
+  private _leaf_merge_right(index_of_child:Key, index_of_data_in_child:Key):BNode<Data>{
+    let to_merge = this.children[index_of_child + 1]
+    let child = this.children[index_of_child]
+
+    child.datas.splice(index_of_data_in_child, 1)
+    child.thresholds.splice(index_of_data_in_child, 1)
+    
+    let tmp_data = this.datas.splice(index_of_child, 1)[0]
+    let tmp_thresholds = this.thresholds.splice(index_of_child, 1)[0]
+    this.children.splice(index_of_child + 1, 1)
+
+    child.datas.push(tmp_data);
+    child.datas.push(...to_merge.datas);
+    child.thresholds.push(tmp_thresholds);
+    child.thresholds.push(...to_merge.thresholds);
+
+    return this;
+  }
+  // Case II.1
+  
 
   private _delete_wrapper(userID:Key, index:number):BNode<Data>{
     //Assuming that userID is present in this.children
@@ -902,6 +956,16 @@ export class BNode<Data> {
   // Has (used for tests)
   has(userID:Key){
     return this.thresholds.includes(userID);
+  }
+  get_index_of(child:BNode<Data>){
+    let index = 0;
+    for (let mychild of this.children){
+      if (child === mychild){
+        return index;
+      }
+      index++;
+    }
+    throw new Error("Could not find the child")
   }
 }
 
