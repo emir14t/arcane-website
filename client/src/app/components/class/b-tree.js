@@ -80,7 +80,7 @@ var BNode = /** @class */ (function () {
         }
         this.parent = parent;
         this.maxNumberOfThresholds = maxNumberOfThresholds;
-        this.minNumberOfThresholds = Math.ceil((maxNumberOfThresholds + 1) / 2) - 1;
+        this.minNumberOfThresholds = Math.floor((maxNumberOfThresholds) / 2);
     }
     //Signals
     BNode.prototype.parent_changed = function (newParent) {
@@ -379,6 +379,82 @@ var BNode = /** @class */ (function () {
             }
         }
     };
+    BNode.prototype._split_node_wrapper_nr = function () {
+        //This handles the edge cases before asking parent to split this BNode
+        if (typeof this.parent === "undefined") {
+            var tmpParent = new BNode(undefined, this.maxNumberOfThresholds); //, this.transactionService
+            tmpParent.children.push(this);
+            this.parent = tmpParent;
+            this.parent_changed(tmpParent);
+            return tmpParent._split_node_nr(this);
+        }
+        return this.parent._split_node_nr(this);
+    };
+    BNode.prototype._split_node_nr = function (childBNode) {
+        //Assuming that childBNode.parent === this
+        var newBNode = new BNode(this, this.maxNumberOfThresholds); //, this.transactionService
+        var sizePartition1 = Math.floor(childBNode.thresholds.length / 2);
+        var keyToPromote = childBNode.thresholds[sizePartition1];
+        var dataToPromote = childBNode.datas[sizePartition1];
+        //Spliting the BNode into three, the original childBNode pointer, the new newBNode pointer and the new promoted data
+        newBNode.datas = childBNode.datas.slice(0, sizePartition1);
+        newBNode.thresholds = childBNode.thresholds.slice(0, sizePartition1);
+        newBNode.children = childBNode.children.slice(0, sizePartition1 + 1);
+        for (var _i = 0, _a = newBNode.children; _i < _a.length; _i++) {
+            var child = _a[_i];
+            child.parent = newBNode;
+        }
+        childBNode.datas = childBNode.datas.slice(sizePartition1 + 1);
+        childBNode.thresholds = childBNode.thresholds.slice(sizePartition1 + 1);
+        childBNode.children = childBNode.children.slice(sizePartition1 + 1);
+        //Add the information to the tree
+        //Newly added parents
+        if (this.thresholds.length == 0) {
+            if (this.children.length != 1) {
+                throw new Error("Current BNode has no children nor thresholds");
+            }
+            if (this.children[0] !== childBNode) {
+                throw new Error("Inconsistencies when adding BNodes (children doesn't represent child)");
+            }
+            this.children.unshift(newBNode);
+            this.thresholds.unshift(keyToPromote);
+            this.datas.unshift(dataToPromote);
+        }
+        //Finding the spot to add it
+        else if (keyToPromote < this.thresholds[0]) {
+            if (this.children[0] !== childBNode) {
+                throw new Error("Inconsistencies when adding BNodes (children doesn't represent child)");
+            }
+            this.children.unshift(newBNode);
+            this.thresholds.unshift(keyToPromote);
+            this.datas.unshift(dataToPromote);
+        }
+        else if (keyToPromote > this.thresholds[this.thresholds.length - 1]) {
+            this.children.splice(this.children.length - 1, 0, newBNode);
+            this.thresholds.push(keyToPromote);
+            this.datas.push(dataToPromote);
+        }
+        else if (keyToPromote === this.thresholds[this.thresholds.length - 1]) {
+            throw new Error("Promoted BNode already exists in his parent's dataset. Node data:\'" + this.thresholds + "\', keyToPromote:" + keyToPromote);
+        }
+        else {
+            for (var i = 0; i < this.thresholds.length - 1; i++) {
+                if (keyToPromote > this.thresholds[i] && keyToPromote < this.thresholds[i + 1]) {
+                    this.children.splice(i + 1, 0, newBNode);
+                    this.thresholds.splice(i + 1, 0, keyToPromote);
+                    this.datas.splice(i + 1, 0, dataToPromote);
+                    break;
+                }
+                else if (keyToPromote == this.thresholds[i]) {
+                    throw new Error("Promoted BNode already exists in his parent's dataset. Node data:\'" + this.thresholds + "\', keyToPromote:" + keyToPromote);
+                }
+            }
+        }
+        //Check if we have to split
+        if (this.thresholds.length > this.maxNumberOfThresholds) {
+            this._split_node_wrapper_nr();
+        }
+    };
     // Deletion algorithm (returns a valid BNode<Data>)
     BNode.prototype.delete = function (userID) {
         return this._delete_up(userID);
@@ -428,207 +504,42 @@ var BNode = /** @class */ (function () {
         }
         return this.parent._delete_up(userID);
     };
-    // Case I.1
-    BNode.prototype._leaf_handler = function (index_of_data) {
-        if (this.thresholds.length > this.minNumberOfThresholds || typeof this.parent === "undefined") {
-            return this._leaf_naive_delete(index_of_data);
-        }
-        var index_of_child = this.parent.get_index_of(this);
-        return this.parent._leaf_borrow(index_of_child, index_of_data);
-    };
-    BNode.prototype._leaf_naive_delete = function (index_of_data) {
-        // Assuming that we can
-        this.datas.splice(index_of_data, 1);
-        this.thresholds.splice(index_of_data, 1);
-        return this;
-    };
-    BNode.prototype._leaf_borrow = function (index_of_child, index_of_data_in_child) {
-        // Assuming that all children are leaves and that the data to be delete is in this.children[index_of_child][index_of_data_in_child]
-        var left_child = (index_of_child - 1 < 0) ? undefined : this.children[index_of_child - 1];
-        if (typeof left_child !== "undefined") {
-            var left_child_count = left_child.thresholds.length;
-            if (left_child_count > this.minNumberOfThresholds) {
-                return this._leaf_left_borrow(index_of_child, index_of_data_in_child);
-            }
-        }
-        var right_child = (index_of_child + 1 >= this.children.length) ? undefined : this.children[index_of_child + 1];
-        if (typeof right_child !== "undefined") {
-            var right_child_count = right_child.thresholds.length;
-            if (right_child_count > this.minNumberOfThresholds) {
-                return this._leaf_right_borrow(index_of_child, index_of_data_in_child);
-            }
-        }
-        return this._leaf_merge(index_of_child, index_of_data_in_child);
-    };
-    BNode.prototype._leaf_left_borrow = function (index_of_child, index_of_data_in_child) {
-        var child_with_data = this.children[index_of_child];
-        var left_child = this.children[index_of_child - 1];
-        var key_to_move = left_child.thresholds.pop();
-        var data_to_move = left_child.datas.pop();
-        var tmp_key = this.thresholds[index_of_child];
-        var tmp_data = this.datas[index_of_child];
-        this.thresholds[index_of_child] = key_to_move;
-        this.datas[index_of_child] = data_to_move;
-        child_with_data.thresholds[index_of_data_in_child] = tmp_key;
-        child_with_data.datas[index_of_data_in_child] = tmp_data;
-        return this;
-    };
-    BNode.prototype._leaf_right_borrow = function (index_of_child, index_of_data_in_child) {
-        var child_with_data = this.children[index_of_child];
-        var right_child = this.children[index_of_child + 1];
-        var key_to_move = right_child.thresholds.pop();
-        var data_to_move = right_child.datas.pop();
-        var tmp_key = this.thresholds[index_of_child - 1];
-        var tmp_data = this.datas[index_of_child - 1];
-        this.thresholds[index_of_child] = key_to_move;
-        this.datas[index_of_child] = data_to_move;
-        child_with_data.thresholds[index_of_data_in_child] = tmp_key;
-        child_with_data.datas[index_of_data_in_child] = tmp_data;
-        return this;
-    };
-    BNode.prototype._leaf_merge = function (index_of_child, index_of_data_in_child) {
-        if (index_of_child - 1 > 0) {
-            return this._leaf_merge_left(index_of_child, index_of_data_in_child);
-        }
-        else {
-            return this._leaf_merge_right(index_of_child, index_of_data_in_child);
-        }
-    };
-    BNode.prototype._leaf_merge_left = function (index_of_child, index_of_data_in_child) {
-        var _a, _b;
-        var to_merge = this.children[index_of_child - 1];
-        var child = this.children[index_of_child];
-        child.datas.splice(index_of_data_in_child, 1);
-        child.thresholds.splice(index_of_data_in_child, 1);
-        var tmp_data = this.datas.splice(index_of_child - 1, 1)[0];
-        var tmp_thresholds = this.thresholds.splice(index_of_child - 1, 1)[0];
-        this.children.splice(index_of_child, 1);
-        to_merge.datas.push(tmp_data);
-        (_a = to_merge.datas).push.apply(_a, child.datas);
-        to_merge.thresholds.push(tmp_thresholds);
-        (_b = to_merge.thresholds).push.apply(_b, child.thresholds);
-        return this;
-    };
-    BNode.prototype._leaf_merge_right = function (index_of_child, index_of_data_in_child) {
-        var _a, _b;
-        var to_merge = this.children[index_of_child + 1];
-        var child = this.children[index_of_child];
-        child.datas.splice(index_of_data_in_child, 1);
-        child.thresholds.splice(index_of_data_in_child, 1);
-        var tmp_data = this.datas.splice(index_of_child, 1)[0];
-        var tmp_thresholds = this.thresholds.splice(index_of_child, 1)[0];
-        this.children.splice(index_of_child + 1, 1);
-        child.datas.push(tmp_data);
-        (_a = child.datas).push.apply(_a, to_merge.datas);
-        child.thresholds.push(tmp_thresholds);
-        (_b = child.thresholds).push.apply(_b, to_merge.thresholds);
-        return this;
-    };
-    // Case II.1
-    BNode.prototype._internal_handler = function (index_of_data) {
-        if (this.children[index_of_data].thresholds.length > this.minNumberOfThresholds) {
-            var left_inorder = this.children[index_of_data - 1];
-            while (left_inorder.children.length !== 0) {
-                left_inorder = left_inorder.children[this.children.length - 1];
-            }
-            return this._internal_left_promote(left_inorder, index_of_data);
-        }
-        if (this.children[index_of_data + 1].thresholds.length > this.minNumberOfThresholds) {
-            var right_inorder = this.children[index_of_data + 1];
-            while (right_inorder.children.length !== 0) {
-                right_inorder = right_inorder.children[0];
-            }
-            return this._internal_right_promote(right_inorder, index_of_data);
-        }
-        return this._internal_merge(index_of_data);
-    };
-    BNode.prototype._internal_left_promote = function (inorder_leaf, index_of_data) {
-        var index = inorder_leaf.datas.length - 1;
-        var tmp_data = inorder_leaf.datas[index];
-        var tmp_key = inorder_leaf.thresholds[index];
-        inorder_leaf._delete_wrapper(index);
-        this.datas[index_of_data] = tmp_data;
-        this.thresholds[index_of_data] = tmp_key;
-        return this;
-    };
-    BNode.prototype._internal_right_promote = function (inorder_leaf, index_of_data) {
-        var index = 0;
-        var tmp_data = inorder_leaf.datas[index];
-        var tmp_key = inorder_leaf.thresholds[index];
-        inorder_leaf._delete_wrapper(index);
-        this.datas[index_of_data] = tmp_data;
-        this.thresholds[index_of_data] = tmp_key;
-        return this;
-    };
-    BNode.prototype._internal_merge = function (index_of_data) {
-        return this._internal_merge_down(this.children[index_of_data], this.children[index_of_data + 1]);
-    };
-    BNode.prototype._internal_merge_down = function (left_node, right_node) {
-        var _a, _b, _c, _d, _e;
-        if (left_node.children.length == 0) {
-            (_a = left_node.thresholds).push.apply(_a, right_node.thresholds);
-            (_b = left_node.datas).push.apply(_b, right_node.datas);
-            return left_node;
-        }
-        var leftChild = left_node.children[left_node.children.length - 1];
-        var rightChild = right_node.children.shift();
-        (_c = left_node.thresholds).push.apply(_c, right_node.thresholds);
-        (_d = left_node.datas).push.apply(_d, right_node.datas);
-        (_e = left_node.children).push.apply(_e, right_node.children);
-        var returned_child = this._internal_merge_down(leftChild, rightChild);
-        if (returned_child.thresholds.length > this.maxNumberOfThresholds) {
-            this._split_node(returned_child.thresholds[0], returned_child);
-        }
-        return this;
-    };
-    BNode.prototype._tmp_delete_wrapper = function (index) {
+    BNode.prototype._delete_wrapper = function (index) {
+        //Assuming that userID is present in this.children
+        //Case 1: Leaf
         if (this.children.length === 0) {
             return this._leaf_handler(index);
         }
-        else {
-            return this._internal_handler(index);
-        }
+        return this._internal_handler(index);
     };
-    BNode.prototype._delete_wrapper = function (index) {
-        return this._tmp_delete_wrapper(index);
-        //Assuming that userID is present in this.children
-        //Assuming that children[index] == userID
-        //Case 1: Leaf
-        if (this.children.length === 0) {
-            this.datas.splice(index, 1);
-            this.thresholds.splice(index, 1);
-            if (this.datas.length < this.minNumberOfThresholds) {
-                if (typeof this.parent == "undefined") {
-                    return this;
-                }
-                return this.parent._balance_tree(this);
+    BNode.prototype._leaf_handler = function (index) {
+        this.datas.splice(index, 1);
+        this.thresholds.splice(index, 1);
+        if (this.datas.length < this.minNumberOfThresholds) {
+            if (typeof this.parent == "undefined") {
+                return this;
             }
-            return this;
+            return this.parent._balance_tree(this);
         }
+        return this;
+    };
+    BNode.prototype._internal_handler = function (index) {
         var leftChild = this.children[index];
         var rightChild = this.children[index + 1];
-        //Case 2: No leaf
-        //Case 2.a: Compression
-        if (leftChild.thresholds.length + rightChild.thresholds.length < this.maxNumberOfThresholds) {
-            this.children.splice(index + 1, 1);
-            this.datas.splice(index, 1);
-            this.thresholds.splice(index, 1);
-            this._merge_nodes(leftChild, rightChild);
-            if (this.datas.length < this.minNumberOfThresholds) {
-                if (typeof this.parent == "undefined") {
-                    return this;
-                }
-                return this.parent._balance_tree(this);
-            }
-            return this;
-        }
         //Case 2.b: Rotation
         //Case 2.ba: Left child has more entries
-        if (leftChild.thresholds.length > rightChild.thresholds.length) {
-            var childToDeleteFrom = leftChild;
-            while (childToDeleteFrom.children.length !== 0) {
-                childToDeleteFrom = childToDeleteFrom.children[childToDeleteFrom.children.length - 1];
+        var childToDeleteFrom = leftChild;
+        var possible = false;
+        while (childToDeleteFrom.children.length !== 0) {
+            if (childToDeleteFrom.thresholds.length > this.minNumberOfThresholds) {
+                possible = true;
             }
+            childToDeleteFrom = childToDeleteFrom.children[childToDeleteFrom.children.length - 1];
+        }
+        if (childToDeleteFrom.thresholds.length > this.minNumberOfThresholds) {
+            possible = true;
+        }
+        if (possible) {
             var indexToRem = childToDeleteFrom.thresholds.length - 1;
             var thresholdToRem = childToDeleteFrom.thresholds[indexToRem];
             var dataToRem = childToDeleteFrom.datas[indexToRem];
@@ -644,11 +555,18 @@ var BNode = /** @class */ (function () {
             return this;
         }
         //Case 2.bb: Right child has more (or equal) entries
-        else {
-            var childToDeleteFrom = rightChild;
-            while (childToDeleteFrom.children.length !== 0) {
-                childToDeleteFrom = childToDeleteFrom.children[0];
+        childToDeleteFrom = rightChild;
+        possible = false;
+        while (childToDeleteFrom.children.length !== 0) {
+            if (childToDeleteFrom.thresholds.length > this.minNumberOfThresholds) {
+                possible = true;
             }
+            childToDeleteFrom = childToDeleteFrom.children[0];
+        }
+        if (childToDeleteFrom.thresholds.length > this.minNumberOfThresholds) {
+            possible = true;
+        }
+        if (possible) {
             var thresholdToRem = childToDeleteFrom.thresholds[0];
             var dataToRem = childToDeleteFrom.datas[0];
             childToDeleteFrom._delete_wrapper(0);
@@ -662,6 +580,34 @@ var BNode = /** @class */ (function () {
             }
             return this;
         }
+        //Case 2.a: Compression
+        if (leftChild.thresholds.length + rightChild.thresholds.length < this.maxNumberOfThresholds) {
+            this.children.splice(index + 1, 1);
+            this.datas.splice(index, 1);
+            this.thresholds.splice(index, 1);
+            this._stupid_merge(leftChild, rightChild);
+            if (this.datas.length < this.minNumberOfThresholds) {
+                if (typeof this.parent == "undefined") {
+                    return this;
+                }
+                return this.parent._balance_tree(this);
+            }
+            return this;
+        }
+        else if ((leftChild.thresholds.length + rightChild.thresholds.length) === this.maxNumberOfThresholds) {
+            this.children.splice(index + 1, 1);
+            this.datas.splice(index, 1);
+            this.thresholds.splice(index, 1);
+            this._stupid_merge(leftChild, rightChild);
+            if (this.datas.length < this.minNumberOfThresholds) {
+                if (typeof this.parent == "undefined") {
+                    return this;
+                }
+                return this.parent._balance_tree(this);
+            }
+            return this;
+        }
+        throw new Error("Unresolved here");
     };
     BNode.prototype._merge_nodes = function (BNode1, BNode2) {
         //Assuming that both BNodes provided are from the same level
@@ -669,6 +615,9 @@ var BNode = /** @class */ (function () {
         if (BNode1.children.length == 0) {
             BNode1.thresholds = BNode1.thresholds.concat(BNode2.thresholds);
             BNode1.datas = BNode1.datas.concat(BNode2.datas);
+            if (BNode1.thresholds.length > this.maxNumberOfThresholds) {
+                BNode1._split_node_wrapper_nr();
+            }
             return;
         }
         var leftChild = BNode1.children[BNode1.children.length - 1];
@@ -723,9 +672,27 @@ var BNode = /** @class */ (function () {
             return;
         }
     };
+    BNode.prototype._stupid_merge = function (BNode1, BNode2) {
+        var _a, _b, _c, _d, _e;
+        if (BNode1.children.length === 0) {
+            (_a = BNode1.datas).push.apply(_a, BNode2.datas);
+            (_b = BNode1.thresholds).push.apply(_b, BNode2.thresholds);
+            return;
+        }
+        var left = BNode1.children[BNode1.children.length - 1];
+        var right = BNode2.children.shift();
+        (_c = BNode1.datas).push.apply(_c, BNode2.datas);
+        (_d = BNode1.thresholds).push.apply(_d, BNode2.thresholds);
+        (_e = BNode1.children).push.apply(_e, BNode2.children);
+        for (var _i = 0, _f = BNode2.children; _i < _f.length; _i++) {
+            var child = _f[_i];
+            child.parent = BNode1;
+        }
+        this._stupid_merge(left, right);
+    };
     BNode.prototype._balance_tree = function (changedBNode) {
         var _a, _b, _c, _d, _e, _f, _g, _h, _j;
-        if (changedBNode.thresholds.length >= Math.floor(this.maxNumberOfThresholds / 2)) {
+        if (changedBNode.thresholds.length >= this.minNumberOfThresholds) {
             return this;
         }
         //Finding the index
@@ -1105,7 +1072,7 @@ var Testing = /** @class */ (function () {
             cur.insert_child(i, ["hi"]);
         }
         for (var i = 0; i <= 100; i++) {
-            if (cur.search(i).has(i)) {
+            if (!cur.search(i).has(i)) {
                 throw new Error("Problem with the search");
             }
         }
@@ -1181,7 +1148,7 @@ var Testing = /** @class */ (function () {
         var set = [];
         var cur = new BNode(undefined, 6);
         while (true) {
-            if (set.length > 120) {
+            if (set.length > 10000) {
                 if (Math.random() < 0.40) {
                     var random_number = Math.floor(Math.random() * 100000);
                     while (set.includes(random_number)) {
@@ -1192,19 +1159,12 @@ var Testing = /** @class */ (function () {
                 }
                 else {
                     var random_index = Math.floor(Math.random() * set.length);
-                    // cur.print_tree();
-                    try {
-                        cur = cur.delete(set[random_index]);
-                        set.splice(random_index, 1);
-                    }
-                    catch (e) {
-                        console.log("deleting " + set[random_index]);
-                        cur.print_tree();
-                        throw new Error(e);
-                    }
+                    // console.log("deleting " + set[random_index]);
+                    cur = cur.delete(set[random_index]);
+                    set.splice(random_index, 1);
                 }
             }
-            else if (set.length < 36) {
+            else if (set.length < 2) {
                 var random_number = Math.floor(Math.random() * 100000);
                 while (set.includes(random_number)) {
                     random_number = Math.floor(Math.random() * 100000);
@@ -1223,20 +1183,14 @@ var Testing = /** @class */ (function () {
                 }
                 else {
                     var random_index = Math.floor(Math.random() * set.length);
-                    console.log("deleting " + set[random_index]);
-                    // cur.print_tree();
-                    try {
-                        cur = cur.delete(set[random_index]);
-                        set.splice(random_index, 1);
-                    }
-                    catch (e) {
-                        cur.print_tree();
-                        throw new Error(e);
-                    }
+                    // console.log("deleting " + set[random_index]);
+                    cur = cur.delete(set[random_index]);
+                    set.splice(random_index, 1);
                 }
             }
-            cur.print_tree();
+            // cur.print_tree()
             cur.validate_tree();
+            console.log(set.length);
         }
     };
     Testing.prototype.test_bnode_tree_to_node_map = function () {
@@ -1263,4 +1217,4 @@ var Testing = /** @class */ (function () {
 }());
 exports.Testing = Testing;
 var t = new Testing();
-t.deleteTest004();
+t.allTests();
