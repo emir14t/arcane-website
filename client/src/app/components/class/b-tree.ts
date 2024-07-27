@@ -1,7 +1,21 @@
-import { Node,Transaction } from "src/app/interface/interface";
+// import { Node,Transaction } from "src/app/interface/interface";
 import { Mutex } from 'async-mutex';
-import { BUBBLE_UP_WAIT_TIME,TRANSACTION_WAIT_TIME } from "src/app/constants"; 
-import { TransactionService } from "src/app/services/transaction.service";
+// import { BUBBLE_UP_WAIT_TIME,TRANSACTION_WAIT_TIME } from "src/app/constants"; 
+// import { TransactionService } from "src/app/services/transaction.service";
+
+export interface Node {
+  id : number,
+  depth : number,
+  breadth : number,
+  parent : number | null,
+  value: any,
+}
+export interface Transaction{
+  writes: any[],
+  reads: any[]
+}
+export const BUBBLE_UP_WAIT_TIME:number = 500;   // How long(ms) does each node wait for more transactions before bubbleling up
+export const TRANSACTION_WAIT_TIME:number = 30; // How long(ms) does each node wait before sending the data to his parent (applies after bubble up wait time)
 
 
 type Key = number;
@@ -19,11 +33,14 @@ export class User{
 
 }
 export class BNode<Data> {
-  //Signals
-  parent_changed(newParent:BNode<Data>){
-    //console.log("Root has changed!");
+  // Signals 
+  transaction_is_arriving(id: number){
+    // this.transactionService.transactionIsArriving(id);
   }
-  
+  transaction_is_leaving(id: number){
+    // this.transactionService.transactionIsLeaving(id);
+  }
+
   // Data
   private parent:Nullable<BNode<Data>>;
   private children:Array<BNode<Data>> = [];
@@ -31,31 +48,25 @@ export class BNode<Data> {
   private datas:Array<Data> = new Array<Data>();
   private maxNumberOfThresholds:number = -1;
   private minNumberOfThresholds:number = -1;
+  // private transactionService:TransactionService;
 
   // Constructor
-  constructor(parent:Nullable<BNode<Data>>, maxNumberOfThresholds:number, private transactionService:TransactionService){
+  constructor(parent:Nullable<BNode<Data>>, maxNumberOfThresholds:number){ //, transactionService:TransactionService
     //Initialization
     if (maxNumberOfThresholds < 2){throw new Error("Disallowed initialization");}
 
     this.parent = parent;
     this.maxNumberOfThresholds = maxNumberOfThresholds;
     this.minNumberOfThresholds = Math.floor((maxNumberOfThresholds)/2)
+    // this.transactionService = transactionService;
   }
 
-  transaction_is_arriving(id: number){
-    this.transactionService.transactionIsArriving(id);
-  }
-  transaction_is_leaving(id: number){
-    this.transactionService.transactionIsLeaving(id);
-  }
-
-  // Transactions
+  // Transaction handleling
   private my_lock = new Mutex();
   private all_cur_transactions:Array<Transaction> = []
   async create_transaction(transaction:Transaction){
     this._data_collection([transaction]);
   }
-  // Called whenever a node receives a transaction
   private async _data_collection(transactions:Array<Transaction>):Promise<void>{
     this.transaction_is_arriving(this.thresholds[0]);
     await this.my_lock.acquire();
@@ -70,7 +81,6 @@ export class BNode<Data> {
       this.my_lock.release();
     }
   }
-  // Called whenever a node bubbles up a transaction
   private async _bubble_up(){
     this.transaction_is_leaving(this.thresholds[0]);
     await this.my_lock.acquire();
@@ -225,10 +235,9 @@ export class BNode<Data> {
   private _split_node_wrapper(userID:Key):(BNode<Data>|undefined){
     //This handles the edge cases before asking parent to split this BNode
     if (typeof this.parent === "undefined"){
-      let tmpParent:BNode<Data> = new BNode(undefined, this.maxNumberOfThresholds, this.transactionService)
+      let tmpParent:BNode<Data> = new BNode(undefined, this.maxNumberOfThresholds) //, this.transactionService
       tmpParent.children.push(this);
       this.parent = tmpParent;
-      this.parent_changed(tmpParent);
       return tmpParent._split_node(userID, this);
     }
 
@@ -236,7 +245,7 @@ export class BNode<Data> {
   }
   private _split_node(userID:Key, childBNode:BNode<Data>):(BNode<Data>|undefined){
     //Assuming that childBNode.parent === this
-    let newBNode:BNode<Data> = new BNode<Data>(this, this.maxNumberOfThresholds, this.transactionService);
+    let newBNode:BNode<Data> = new BNode<Data>(this, this.maxNumberOfThresholds); //, this.transactionService
     let sizePartition1:number = Math.floor(childBNode.thresholds.length/2);
     let keyToPromote:Key = childBNode.thresholds[sizePartition1];
     let dataToPromote:Data = childBNode.datas[sizePartition1];
@@ -329,10 +338,9 @@ export class BNode<Data> {
   private _split_node_wrapper_nr():void{
     //This handles the edge cases before asking parent to split this BNode
     if (typeof this.parent === "undefined"){
-      let tmpParent:BNode<Data> = new BNode(undefined, this.maxNumberOfThresholds, this.transactionService);
+      let tmpParent:BNode<Data> = new BNode(undefined, this.maxNumberOfThresholds); //, this.transactionService
       tmpParent.children.push(this);
       this.parent = tmpParent;
-      this.parent_changed(tmpParent);
       return tmpParent._split_node_nr(this);
     }
 
@@ -340,7 +348,7 @@ export class BNode<Data> {
   }
   private _split_node_nr(childBNode:BNode<Data>):void{
     //Assuming that childBNode.parent === this
-    let newBNode:BNode<Data> = new BNode<Data>(this, this.maxNumberOfThresholds, this.transactionService);
+    let newBNode:BNode<Data> = new BNode<Data>(this, this.maxNumberOfThresholds); //, this.transactionService
     let sizePartition1:number = Math.floor(childBNode.thresholds.length/2);
     let keyToPromote:Key = childBNode.thresholds[sizePartition1];
     let dataToPromote:Data = childBNode.datas[sizePartition1];
@@ -485,8 +493,49 @@ export class BNode<Data> {
     let leftChild:BNode<Data> = this.children[index];
     let rightChild:BNode<Data> = this.children[index + 1];
 
-    //Case 2.b: Rotation
-    //Case 2.ba: Left child has more entries
+    //Case 2.a: Rotation
+    //Case 2.aa: Left child has more entries
+    let childToDeleteFrom = this._can_promote_left(leftChild);
+    if (typeof childToDeleteFrom !== "undefined"){
+      this._promote_left(childToDeleteFrom, index);
+    }
+
+    //Case 2.ab: Right child has more (or equal) entries
+    childToDeleteFrom = this._can_promote_right(rightChild)
+    if (typeof childToDeleteFrom !== "undefined"){
+      this._promote_right(childToDeleteFrom, index);
+    }
+
+    //Case 2.b: Compression
+    if (leftChild.thresholds.length + rightChild.thresholds.length <= this.maxNumberOfThresholds){
+      this.children.splice(index + 1, 1);
+      this.datas.splice(index, 1);
+      this.thresholds.splice(index, 1);
+  
+      this._naive_merge(leftChild, rightChild);
+      return this._test_balance()    }
+
+    throw new Error("Unresolved here");
+  }
+  private _can_promote_right(rightChild:BNode<Data>):Nullable<BNode<Data>>{
+    let childToDeleteFrom = rightChild;
+    let possible = false;
+    while(childToDeleteFrom.children.length !== 0){
+      if (childToDeleteFrom.thresholds.length > this.minNumberOfThresholds){
+        possible = true;
+      }
+      childToDeleteFrom = childToDeleteFrom.children[0];
+    }
+    if (childToDeleteFrom.thresholds.length > this.minNumberOfThresholds){
+      possible = true;
+    }
+
+    if (possible){
+      return childToDeleteFrom;
+    }
+    return undefined;
+  }
+  private _can_promote_left(leftChild:BNode<Data>):Nullable<BNode<Data>>{
     let childToDeleteFrom = leftChild;
     let possible = false;
     while(childToDeleteFrom.children.length !== 0){
@@ -498,90 +547,34 @@ export class BNode<Data> {
     if (childToDeleteFrom.thresholds.length > this.minNumberOfThresholds){
       possible = true;
     }
+
     if (possible){
-      let indexToRem:number = childToDeleteFrom.thresholds.length - 1;
-      let thresholdToRem:Key = childToDeleteFrom.thresholds[indexToRem];
-      let dataToRem:Data = childToDeleteFrom.datas[indexToRem];
-
-      childToDeleteFrom._delete_wrapper(indexToRem);
-
-      this.thresholds[index] = thresholdToRem;
-      this.datas[index] = dataToRem;
-      
-      if (this.datas.length < this.minNumberOfThresholds){
-        if (typeof this.parent == "undefined"){
-          return this;
-        }
-        return (this.parent as BNode<Data>)._balance_tree(this);
-      }
-      return this;
+      return childToDeleteFrom;
     }
-
-    //Case 2.bb: Right child has more (or equal) entries
-    childToDeleteFrom = rightChild;
-    possible = false;
-    while(childToDeleteFrom.children.length !== 0){
-      if (childToDeleteFrom.thresholds.length > this.minNumberOfThresholds){
-        possible = true;
-      }
-      childToDeleteFrom = childToDeleteFrom.children[0];
-    }
-    if (childToDeleteFrom.thresholds.length > this.minNumberOfThresholds){
-      possible = true;
-    }
-    if (possible){
-      let thresholdToRem:Key = childToDeleteFrom.thresholds[0];
-      let dataToRem:Data = childToDeleteFrom.datas[0];
-
-      childToDeleteFrom._delete_wrapper(0);
-
-      this.thresholds[index] = thresholdToRem;
-      this.datas[index] = dataToRem;
-      
-      if (this.datas.length < this.minNumberOfThresholds){
-        if (typeof this.parent == "undefined"){
-          return this;
-        }
-        return (this.parent as BNode<Data>)._balance_tree(this);
-      }
-      return this;
-    }
-
-    //Case 2.a: Compression
-    if (leftChild.thresholds.length + rightChild.thresholds.length < this.maxNumberOfThresholds){
-      this.children.splice(index + 1, 1);
-      this.datas.splice(index, 1);
-      this.thresholds.splice(index, 1);
-
-      this._stupid_merge(leftChild, rightChild);
-
-      if (this.datas.length < this.minNumberOfThresholds){
-        if (typeof this.parent == "undefined"){
-          return this;
-        }
-        return (this.parent as BNode<Data>)._balance_tree(this);
-      }
-      return this;
-    }
-    else if ((leftChild.thresholds.length + rightChild.thresholds.length) === this.maxNumberOfThresholds){
-      this.children.splice(index + 1, 1);
-      this.datas.splice(index, 1);
-      this.thresholds.splice(index, 1);
-
-      this._stupid_merge(leftChild, rightChild);
-
-      if (this.datas.length < this.minNumberOfThresholds){
-        if (typeof this.parent == "undefined"){
-          return this;
-        }
-        return (this.parent as BNode<Data>)._balance_tree(this);
-      }
-      return this;
-    }
-    throw new Error("Unresolved here");
+    return undefined;
   }
+  private _promote_right(childToDeleteFrom:BNode<Data>, index:number){
+    let thresholdToRem:Key = childToDeleteFrom.thresholds[0];
+    let dataToRem:Data = childToDeleteFrom.datas[0];
 
-  private _stupid_merge(BNode1:BNode<Data>, BNode2:BNode<Data>){
+    childToDeleteFrom._delete_wrapper(0);
+
+    this.thresholds[index] = thresholdToRem;
+    this.datas[index] = dataToRem;
+    return this._test_balance()
+  }
+  private _promote_left(childToDeleteFrom:BNode<Data>, index:number){
+    let indexToRem:number = childToDeleteFrom.thresholds.length - 1;
+    let thresholdToRem:Key = childToDeleteFrom.thresholds[indexToRem];
+    let dataToRem:Data = childToDeleteFrom.datas[indexToRem];
+
+    childToDeleteFrom._delete_wrapper(indexToRem);
+
+    this.thresholds[index] = thresholdToRem;
+    this.datas[index] = dataToRem;
+    return this._test_balance()
+  }
+  private _naive_merge(BNode1:BNode<Data>, BNode2:BNode<Data>):void{
     if (BNode1.children.length === 0){
       BNode1.datas.push(...BNode2.datas)
       BNode1.thresholds.push(...BNode2.thresholds)
@@ -598,7 +591,16 @@ export class BNode<Data> {
       child.parent = BNode1;
     }
 
-    this._stupid_merge(left, right);
+    this._naive_merge(left, right);
+  }
+  private _test_balance(){
+    if (this.thresholds.length < this.minNumberOfThresholds){
+      if (typeof this.parent == "undefined"){
+        return this;
+      }
+      return (this.parent as BNode<Data>)._balance_tree(this);
+    }
+    return this;
   }
   private _balance_tree(changedBNode:BNode<Data>):BNode<Data>{
     if (changedBNode.thresholds.length >= this.minNumberOfThresholds){
@@ -915,241 +917,238 @@ export class BNode<Data> {
 }
 
 
-// export class Testing{
-//   allTests(){
-//     this.insertionTest001();
-//     this.insertionTest002();
-//     this.insertionTest003();
-//     this.insertionTest004();
-//     this.searchTest001();
-//     this.deleteTest001();
-//     this.deleteTest002();
-//     this.deleteTest003();
+export class Testing{
+  allTests(){
+    this.insertionTest001();
+    this.insertionTest002();
+    this.insertionTest003();
+    this.insertionTest004();
+    this.searchTest001();
+    this.deleteTest001();
+    this.deleteTest002();
+    this.deleteTest003();
+    this.deleteTest004();
 
-//     console.log("Works");
-//   }
+    console.log("Works");
+  }
 
-//   insertionTest001(){
-//     let cur:BNode<Array<string>> = new BNode(undefined, 5);
+  insertionTest001(){
+    let cur:BNode<Array<string>> = new BNode(undefined, 5);
 
-//     for (let i = 0; i <= 100; i += 5){
-//       cur = cur.insert_child(i ,["hi"]);
-//     }
-//     for (let i = 1; i <= 100; i += 5){
-//       cur = cur.insert_child(i ,["hi"]);
-//     }
-//     for (let i = 2; i <= 100; i += 5){
-//       cur = cur.insert_child(i ,["hi"]);
-//     }
-//     for (let i = 3; i <= 100; i += 5){
-//       cur = cur.insert_child(i ,["hi"]);
-//     }
-//     for (let i = 4; i <= 100; i += 5){
-//       cur = cur.insert_child(i ,["hi"]);
-//     }
+    for (let i = 0; i <= 100; i += 5){
+      cur = cur.insert_child(i ,["hi"]);
+    }
+    for (let i = 1; i <= 100; i += 5){
+      cur = cur.insert_child(i ,["hi"]);
+    }
+    for (let i = 2; i <= 100; i += 5){
+      cur = cur.insert_child(i ,["hi"]);
+    }
+    for (let i = 3; i <= 100; i += 5){
+      cur = cur.insert_child(i ,["hi"]);
+    }
+    for (let i = 4; i <= 100; i += 5){
+      cur = cur.insert_child(i ,["hi"]);
+    }
 
-//     cur.validate_tree();
-//   }
-//   insertionTest002(){
-//     let cur:BNode<Array<string>> = new BNode(undefined, 5);
+    cur.validate_tree();
+  }
+  insertionTest002(){
+    let cur:BNode<Array<string>> = new BNode(undefined, 5);
 
-//     for (let i = 0; i <= 100; i ++){
-//       cur = cur.insert_child(i ,["hi"]);
-//     }
+    for (let i = 0; i <= 100; i ++){
+      cur = cur.insert_child(i ,["hi"]);
+    }
     
-//     cur.validate_tree();
-//   }
-//   insertionTest003(){
-//     let cur:BNode<Array<string>> = new BNode(undefined, 6);
+    cur.validate_tree();
+  }
+  insertionTest003(){
+    let cur:BNode<Array<string>> = new BNode(undefined, 6);
 
-//     for (let i = 100; i >= 0; i --){
-//       cur = cur.insert_child(i ,["hi"]);
-//     }
+    for (let i = 100; i >= 0; i --){
+      cur = cur.insert_child(i ,["hi"]);
+    }
     
-//     cur.validate_tree();
-//   }
-//   insertionTest004(){
-//     let cur:BNode<Array<string>> = new BNode(undefined, 5);
+    cur.validate_tree();
+  }
+  insertionTest004(){
+    let cur:BNode<Array<string>> = new BNode(undefined, 5);
 
-//     for (let i = 0; i <= 100; i ++){
-//       cur = cur.insert_child(i ,["hi"]);
-//       if (!cur.has(i)){
-//         throw new Error("Output isnt correct");
-//       }
-//     }
-//   }
+    for (let i = 0; i <= 100; i ++){
+      cur = cur.insert_child(i ,["hi"]);
+      if (!cur.has(i)){
+        throw new Error("Output isnt correct");
+      }
+    }
+  }
 
-//   searchTest001(){
-//     let cur:BNode<Array<string>> = new BNode(undefined, 5);
+  searchTest001(){
+    let cur:BNode<Array<string>> = new BNode(undefined, 5);
 
-//     for (let i = 0; i <= 100; i += 5){
-//       cur.insert_child(i ,["hi"]);
-//     }
-//     for (let i = 1; i <= 100; i += 5){
-//       cur.insert_child(i ,["hi"]);
-//     }
-//     for (let i = 2; i <= 100; i += 5){
-//       cur.insert_child(i ,["hi"]);
-//     }
-//     for (let i = 3; i <= 100; i += 5){
-//       cur.insert_child(i ,["hi"]);
-//     }
-//     for (let i = 4; i <= 100; i += 5){
-//       cur.insert_child(i ,["hi"]);
-//     }
+    for (let i = 0; i <= 100; i += 5){
+      cur.insert_child(i ,["hi"]);
+    }
+    for (let i = 1; i <= 100; i += 5){
+      cur.insert_child(i ,["hi"]);
+    }
+    for (let i = 2; i <= 100; i += 5){
+      cur.insert_child(i ,["hi"]);
+    }
+    for (let i = 3; i <= 100; i += 5){
+      cur.insert_child(i ,["hi"]);
+    }
+    for (let i = 4; i <= 100; i += 5){
+      cur.insert_child(i ,["hi"]);
+    }
     
-//     for (let i = 0; i <= 100; i ++){
-//       if (!(cur.search(i) as BNode<any>).has(i)){
-//         throw new Error("Problem with the search");
-//       }
-//     }
-//     for (let i = 101; i <= 200; i++){
-//       if (typeof cur.search(i) !== "undefined"){
-//         throw new Error("Problem with the search");
-//       }
-//     }
-//   }
+    for (let i = 0; i <= 100; i ++){
+      if (!(cur.search(i) as BNode<any>).has(i)){
+        throw new Error("Problem with the search");
+      }
+    }
+    for (let i = 101; i <= 200; i++){
+      if (typeof cur.search(i) !== "undefined"){
+        throw new Error("Problem with the search");
+      }
+    }
+  }
 
-//   deleteTest001(){
-//     let cur:BNode<Array<string>> = new BNode(undefined, 5);
+  deleteTest001(){
+    let cur:BNode<Array<string>> = new BNode(undefined, 5);
 
-//     for (let i = 0; i <= 1000; i ++){
-//       cur.insert_child(i ,["hi"]);
-//     }
+    for (let i = 0; i <= 1000; i ++){
+      cur.insert_child(i ,["hi"]);
+    }
 
-//     // cur.print_tree();
-//     cur.validate_tree();
+    // cur.print_tree();
+    cur.validate_tree();
 
-//     for (let i = 0; i <= 1000; i++){
-//       cur = cur.delete(i)
-//       // root.print_tree();
-//       cur.validate_tree();
-//     }
-//   }
-//   deleteTest002(){
-//     let cur:BNode<Array<string>> = new BNode(undefined, 5);
-//     let leap = 5;
-//     let max = 1000;
-//     for (let j = 0; j < leap; j++){
-//       for (let i = j; i <= max; i += leap){
-//         cur.insert_child(i ,["hi"]);
-//       }
-//     }
+    for (let i = 0; i <= 1000; i++){
+      cur = cur.delete(i)
+      // root.print_tree();
+      cur.validate_tree();
+    }
+  }
+  deleteTest002(){
+    let cur:BNode<Array<string>> = new BNode(undefined, 5);
+    let leap = 5;
+    let max = 1000;
+    for (let j = 0; j < leap; j++){
+      for (let i = j; i <= max; i += leap){
+        cur.insert_child(i ,["hi"]);
+      }
+    }
 
-//     cur.validate_tree();
-//     for (let j = 0; j < leap; j++){
-//       for (let i = j; i <= max; i += leap){
-//         // console.log("Deleting " + i);
-//         cur = cur.delete(i)
-//         // cur.print_tree();
-//         cur.validate_tree();
-//       }
-//     }
-//   }
-//   deleteTest003(){
-//     let cur:BNode<Array<string>> = new BNode(undefined, 5);
-//     let leap = 5;
-//     let max = 1000;
-//     for (let j = 0; j < leap; j++){
-//       for (let i = j; i <= max; i += leap){
-//         cur.insert_child(i ,["hi"]);
-//       }
-//     }
+    cur.validate_tree();
+    for (let j = 0; j < leap; j++){
+      for (let i = j; i <= max; i += leap){
+        // console.log("Deleting " + i);
+        cur = cur.delete(i)
+        // cur.print_tree();
+        cur.validate_tree();
+      }
+    }
+  }
+  deleteTest003(){
+    let cur:BNode<Array<string>> = new BNode(undefined, 5);
+    let leap = 5;
+    let max = 1000;
+    for (let j = 0; j < leap; j++){
+      for (let i = j; i <= max; i += leap){
+        cur.insert_child(i ,["hi"]);
+      }
+    }
 
-//     cur.validate_tree();
-//     for (let j = 0; j < leap; j++){
-//       for (let i = j; i <= max; i += leap){
-//         // console.log("Deleting " + i);
-//         cur = cur.delete(i)
-//         // cur.print_tree();
-//         cur.validate_tree();
-//       }
-//     }
+    cur.validate_tree();
+    for (let j = 0; j < leap; j++){
+      for (let i = j; i <= max; i += leap){
+        // console.log("Deleting " + i);
+        cur = cur.delete(i)
+        // cur.print_tree();
+        cur.validate_tree();
+      }
+    }
 
-//     for (let j = 0; j < leap; j++){
-//       for (let i = j; i <= max; i += leap){
-//         cur.insert_child(i ,["hi"]);
-//       }
-//       for (let i = j; i <= max; i += leap){
-//         // console.log("Deleting " + i);
-//         cur = cur.delete(i)
-//         // root.print_tree();
-//         cur.validate_tree();
-//       }
-//     }
-//   }
-//   deleteTest004(){
-//     let set:Array<Key> = [];
-//     let cur:BNode<string> = new BNode(undefined, 6);
-  
-//     while(true){
-//       if (set.length > 10000){
-//         if (Math.random() < 0.40){
-//           let random_number = Math.floor(Math.random() * 100000)
-//           while (set.includes(random_number)){
-//             random_number = Math.floor(Math.random() * 100000);
-//           }
-//           cur.insert_child(random_number, "hi");
-//           set.push(random_number)
-//         }
-//         else{
-//           let random_index:number = Math.floor(Math.random() * set.length)
-//           // console.log("deleting " + set[random_index]);
-//           cur = cur.delete(set[random_index])
-//           set.splice(random_index,1);
-//         }
-//       }
-//       else if (set.length < 2){
-//         let random_number = Math.floor(Math.random() * 100000)
-//         while (set.includes(random_number)){
-//           random_number = Math.floor(Math.random() * 100000);
-//         }
-//         cur.insert_child(random_number, "hi");
-//         set.push(random_number)
-//       }
-//       else{
-//         if (Math.random() < 0.55){
-//           let random_number = Math.floor(Math.random() * 100000)
-//           while (set.includes(random_number)){
-//             random_number = Math.floor(Math.random() * 100000);
-//           }
-//           cur.insert_child(random_number, "hi");
-//           set.push(random_number)
-//         }
-//         else{
-//           let random_index:number = Math.floor(Math.random() * set.length)
-//           // console.log("deleting " + set[random_index]);
-//           cur = cur.delete(set[random_index])
-//           set.splice(random_index,1);
-//         }
-//       }
-//       // cur.print_tree()
-//       cur.validate_tree()
-//       console.log(set.length)
-//     }
+    for (let j = 0; j < leap; j++){
+      for (let i = j; i <= max; i += leap){
+        cur.insert_child(i ,["hi"]);
+      }
+      for (let i = j; i <= max; i += leap){
+        // console.log("Deleting " + i);
+        cur = cur.delete(i)
+        // root.print_tree();
+        cur.validate_tree();
+      }
+    }
+  }
+  deleteTest004(){
+    let set:Array<Key> = [];
+    let cur:BNode<string> = new BNode(undefined, 4);
     
-//   }
+    let empty = false;
+    for(let i = 0; i < 10000; i++){
+      if (empty){
+        if (set.length === 1){
+          empty = false;
+        }
+        let random_index:number = Math.floor(Math.random() * set.length)
+        cur = cur.delete(set[random_index])
+        set.splice(random_index,1);
+      }
+      if (set.length > 1000){
+        empty = true;
+      }
+      else if (set.length < 2){
+        let random_number = Math.floor(Math.random() * 100000)
+        while (set.includes(random_number)){
+          random_number = Math.floor(Math.random() * 100000);
+        }
+        cur.insert_child(random_number, "hi");
+        set.push(random_number)
+      }
+      else{
+        if (Math.random() < 0.55){
+          let random_number = Math.floor(Math.random() * 100000)
+          while (set.includes(random_number)){
+            random_number = Math.floor(Math.random() * 100000);
+          }
+          cur.insert_child(random_number, "hi");
+          set.push(random_number)
+        }
+        else{
+          let random_index:number = Math.floor(Math.random() * set.length)
+          // console.log("deleting " + set[random_index]);
+          cur = cur.delete(set[random_index])
+          set.splice(random_index,1);
+        }
+      }
+      // cur.print_tree()
+      cur.validate_tree()
+      console.log(set.length)
+    }
+    
+  }
 
-//   test_bnode_tree_to_node_map(){
-//     let cur:BNode<Array<string>> = new BNode(undefined, 5);
+  test_bnode_tree_to_node_map(){
+    let cur:BNode<Array<string>> = new BNode(undefined, 5);
   
-//     for (let i = 0; i <= 100; i ++){
-//       cur.insert_child(i ,["hi"]);
-//     }
+    for (let i = 0; i <= 100; i ++){
+      cur.insert_child(i ,["hi"]);
+    }
   
-//     cur.print_tree();
+    cur.print_tree();
   
-//     console.log(cur.bnode_tree_to_node_map());
-//   }
+    console.log(cur.bnode_tree_to_node_map());
+  }
   
-//   async test_async(){
-//     let cur:BNode<number> = new BNode(undefined, 4);
-//     for (let i = 0; i < 100; i++){
-//       cur.create_transaction({writes:[i], reads:[i]});
-//     }
-//   }
-// }
+  async test_async(){
+    let cur:BNode<number> = new BNode(undefined, 4);
+    for (let i = 0; i < 100; i++){
+      cur.create_transaction({writes:[i], reads:[i]});
+    }
+  }
+}
 
 
-// let t = new Testing();
-// t.allTests();
+let t = new Testing();
+t.allTests();

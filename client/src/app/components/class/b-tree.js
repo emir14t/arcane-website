@@ -64,6 +64,7 @@ var User = /** @class */ (function () {
 }());
 exports.User = User;
 var BNode = /** @class */ (function () {
+    // private transactionService:TransactionService;
     // Constructor
     function BNode(parent, maxNumberOfThresholds) {
         this.children = [];
@@ -71,7 +72,7 @@ var BNode = /** @class */ (function () {
         this.datas = new Array();
         this.maxNumberOfThresholds = -1;
         this.minNumberOfThresholds = -1;
-        // Transactions
+        // Transaction handleling
         this.my_lock = new async_mutex_1.Mutex();
         this.all_cur_transactions = [];
         //Initialization
@@ -81,11 +82,9 @@ var BNode = /** @class */ (function () {
         this.parent = parent;
         this.maxNumberOfThresholds = maxNumberOfThresholds;
         this.minNumberOfThresholds = Math.floor((maxNumberOfThresholds) / 2);
+        // this.transactionService = transactionService;
     }
-    //Signals
-    BNode.prototype.parent_changed = function (newParent) {
-        //console.log("Root has changed!");
-    };
+    // Signals 
     BNode.prototype.transaction_is_arriving = function (id) {
         // this.transactionService.transactionIsArriving(id);
     };
@@ -100,7 +99,6 @@ var BNode = /** @class */ (function () {
             });
         });
     };
-    // Called whenever a node receives a transaction
     BNode.prototype._data_collection = function (transactions) {
         return __awaiter(this, void 0, void 0, function () {
             var im_collecting;
@@ -127,7 +125,6 @@ var BNode = /** @class */ (function () {
             });
         });
     };
-    // Called whenever a node bubbles up a transaction
     BNode.prototype._bubble_up = function () {
         return __awaiter(this, void 0, void 0, function () {
             return __generator(this, function (_a) {
@@ -286,7 +283,6 @@ var BNode = /** @class */ (function () {
             var tmpParent = new BNode(undefined, this.maxNumberOfThresholds); //, this.transactionService
             tmpParent.children.push(this);
             this.parent = tmpParent;
-            this.parent_changed(tmpParent);
             return tmpParent._split_node(userID, this);
         }
         return this.parent._split_node(userID, this);
@@ -385,7 +381,6 @@ var BNode = /** @class */ (function () {
             var tmpParent = new BNode(undefined, this.maxNumberOfThresholds); //, this.transactionService
             tmpParent.children.push(this);
             this.parent = tmpParent;
-            this.parent_changed(tmpParent);
             return tmpParent._split_node_nr(this);
         }
         return this.parent._split_node_nr(this);
@@ -526,8 +521,45 @@ var BNode = /** @class */ (function () {
     BNode.prototype._internal_handler = function (index) {
         var leftChild = this.children[index];
         var rightChild = this.children[index + 1];
-        //Case 2.b: Rotation
-        //Case 2.ba: Left child has more entries
+        //Case 2.a: Rotation
+        //Case 2.aa: Left child has more entries
+        var childToDeleteFrom = this._can_promote_left(leftChild);
+        if (typeof childToDeleteFrom !== "undefined") {
+            this._promote_left(childToDeleteFrom, index);
+        }
+        //Case 2.ab: Right child has more (or equal) entries
+        childToDeleteFrom = this._can_promote_right(rightChild);
+        if (typeof childToDeleteFrom !== "undefined") {
+            this._promote_right(childToDeleteFrom, index);
+        }
+        //Case 2.b: Compression
+        if (leftChild.thresholds.length + rightChild.thresholds.length <= this.maxNumberOfThresholds) {
+            this.children.splice(index + 1, 1);
+            this.datas.splice(index, 1);
+            this.thresholds.splice(index, 1);
+            this._naive_merge(leftChild, rightChild);
+            return this._test_balance();
+        }
+        throw new Error("Unresolved here");
+    };
+    BNode.prototype._can_promote_right = function (rightChild) {
+        var childToDeleteFrom = rightChild;
+        var possible = false;
+        while (childToDeleteFrom.children.length !== 0) {
+            if (childToDeleteFrom.thresholds.length > this.minNumberOfThresholds) {
+                possible = true;
+            }
+            childToDeleteFrom = childToDeleteFrom.children[0];
+        }
+        if (childToDeleteFrom.thresholds.length > this.minNumberOfThresholds) {
+            possible = true;
+        }
+        if (possible) {
+            return childToDeleteFrom;
+        }
+        return undefined;
+    };
+    BNode.prototype._can_promote_left = function (leftChild) {
         var childToDeleteFrom = leftChild;
         var possible = false;
         while (childToDeleteFrom.children.length !== 0) {
@@ -540,139 +572,28 @@ var BNode = /** @class */ (function () {
             possible = true;
         }
         if (possible) {
-            var indexToRem = childToDeleteFrom.thresholds.length - 1;
-            var thresholdToRem = childToDeleteFrom.thresholds[indexToRem];
-            var dataToRem = childToDeleteFrom.datas[indexToRem];
-            childToDeleteFrom._delete_wrapper(indexToRem);
-            this.thresholds[index] = thresholdToRem;
-            this.datas[index] = dataToRem;
-            if (this.datas.length < this.minNumberOfThresholds) {
-                if (typeof this.parent == "undefined") {
-                    return this;
-                }
-                return this.parent._balance_tree(this);
-            }
-            return this;
+            return childToDeleteFrom;
         }
-        //Case 2.bb: Right child has more (or equal) entries
-        childToDeleteFrom = rightChild;
-        possible = false;
-        while (childToDeleteFrom.children.length !== 0) {
-            if (childToDeleteFrom.thresholds.length > this.minNumberOfThresholds) {
-                possible = true;
-            }
-            childToDeleteFrom = childToDeleteFrom.children[0];
-        }
-        if (childToDeleteFrom.thresholds.length > this.minNumberOfThresholds) {
-            possible = true;
-        }
-        if (possible) {
-            var thresholdToRem = childToDeleteFrom.thresholds[0];
-            var dataToRem = childToDeleteFrom.datas[0];
-            childToDeleteFrom._delete_wrapper(0);
-            this.thresholds[index] = thresholdToRem;
-            this.datas[index] = dataToRem;
-            if (this.datas.length < this.minNumberOfThresholds) {
-                if (typeof this.parent == "undefined") {
-                    return this;
-                }
-                return this.parent._balance_tree(this);
-            }
-            return this;
-        }
-        //Case 2.a: Compression
-        if (leftChild.thresholds.length + rightChild.thresholds.length < this.maxNumberOfThresholds) {
-            this.children.splice(index + 1, 1);
-            this.datas.splice(index, 1);
-            this.thresholds.splice(index, 1);
-            this._stupid_merge(leftChild, rightChild);
-            if (this.datas.length < this.minNumberOfThresholds) {
-                if (typeof this.parent == "undefined") {
-                    return this;
-                }
-                return this.parent._balance_tree(this);
-            }
-            return this;
-        }
-        else if ((leftChild.thresholds.length + rightChild.thresholds.length) === this.maxNumberOfThresholds) {
-            this.children.splice(index + 1, 1);
-            this.datas.splice(index, 1);
-            this.thresholds.splice(index, 1);
-            this._stupid_merge(leftChild, rightChild);
-            if (this.datas.length < this.minNumberOfThresholds) {
-                if (typeof this.parent == "undefined") {
-                    return this;
-                }
-                return this.parent._balance_tree(this);
-            }
-            return this;
-        }
-        throw new Error("Unresolved here");
+        return undefined;
     };
-    BNode.prototype._merge_nodes = function (BNode1, BNode2) {
-        //Assuming that both BNodes provided are from the same level
-        //Base Case: leaves
-        if (BNode1.children.length == 0) {
-            BNode1.thresholds = BNode1.thresholds.concat(BNode2.thresholds);
-            BNode1.datas = BNode1.datas.concat(BNode2.datas);
-            if (BNode1.thresholds.length > this.maxNumberOfThresholds) {
-                BNode1._split_node_wrapper_nr();
-            }
-            return;
-        }
-        var leftChild = BNode1.children[BNode1.children.length - 1];
-        var rightChild = BNode2.children[0];
-        //Case 1: We have to keep merging
-        if (leftChild.thresholds.length + rightChild.thresholds.length < this.maxNumberOfThresholds) {
-            BNode1.thresholds = BNode1.thresholds.concat(BNode2.thresholds);
-            BNode1.datas = BNode1.datas.concat(BNode2.datas);
-            BNode2.children.shift();
-            BNode1.children = BNode1.children.concat(BNode2.children);
-            for (var _i = 0, _a = BNode1.children; _i < _a.length; _i++) {
-                var child = _a[_i];
-                child.parent = BNode1;
-            }
-            this._merge_nodes(leftChild, rightChild);
-            return;
-        }
-        //Case 2: We can just rotate
-        else {
-            //Case 2.a: Left child has more entries
-            if (leftChild.thresholds.length > rightChild.thresholds.length) {
-                var indexToPromote = leftChild.thresholds.length - 1;
-                var keyToPromote = leftChild.thresholds[indexToPromote];
-                var dataToPromote = leftChild.datas[indexToPromote];
-                leftChild._delete_wrapper(indexToPromote);
-                BNode1.thresholds.push(keyToPromote);
-                BNode1.datas.push(dataToPromote);
-                BNode1.thresholds = BNode1.thresholds.concat(BNode2.thresholds);
-                BNode1.datas = BNode1.datas.concat(BNode2.datas);
-                BNode1.children = BNode1.children.concat(BNode2.children);
-                for (var _b = 0, _c = BNode1.children; _b < _c.length; _b++) {
-                    var child = _c[_b];
-                    child.parent = BNode1;
-                }
-            }
-            //Case 2.b: Right child has more (or equal) entries
-            else {
-                var indexToPromote = 0;
-                var keyToPromote = rightChild.thresholds[indexToPromote];
-                var dataToPromote = rightChild.datas[indexToPromote];
-                rightChild._delete_wrapper(indexToPromote);
-                BNode1.thresholds.push(keyToPromote);
-                BNode1.datas.push(dataToPromote);
-                BNode1.thresholds = BNode1.thresholds.concat(BNode2.thresholds);
-                BNode1.datas = BNode1.datas.concat(BNode2.datas);
-                BNode1.children = BNode1.children.concat(BNode2.children);
-                for (var _d = 0, _e = BNode1.children; _d < _e.length; _d++) {
-                    var child = _e[_d];
-                    child.parent = BNode1;
-                }
-            }
-            return;
-        }
+    BNode.prototype._promote_right = function (childToDeleteFrom, index) {
+        var thresholdToRem = childToDeleteFrom.thresholds[0];
+        var dataToRem = childToDeleteFrom.datas[0];
+        childToDeleteFrom._delete_wrapper(0);
+        this.thresholds[index] = thresholdToRem;
+        this.datas[index] = dataToRem;
+        return this._test_balance();
     };
-    BNode.prototype._stupid_merge = function (BNode1, BNode2) {
+    BNode.prototype._promote_left = function (childToDeleteFrom, index) {
+        var indexToRem = childToDeleteFrom.thresholds.length - 1;
+        var thresholdToRem = childToDeleteFrom.thresholds[indexToRem];
+        var dataToRem = childToDeleteFrom.datas[indexToRem];
+        childToDeleteFrom._delete_wrapper(indexToRem);
+        this.thresholds[index] = thresholdToRem;
+        this.datas[index] = dataToRem;
+        return this._test_balance();
+    };
+    BNode.prototype._naive_merge = function (BNode1, BNode2) {
         var _a, _b, _c, _d, _e;
         if (BNode1.children.length === 0) {
             (_a = BNode1.datas).push.apply(_a, BNode2.datas);
@@ -688,7 +609,16 @@ var BNode = /** @class */ (function () {
             var child = _f[_i];
             child.parent = BNode1;
         }
-        this._stupid_merge(left, right);
+        this._naive_merge(left, right);
+    };
+    BNode.prototype._test_balance = function () {
+        if (this.thresholds.length < this.minNumberOfThresholds) {
+            if (typeof this.parent == "undefined") {
+                return this;
+            }
+            return this.parent._balance_tree(this);
+        }
+        return this;
     };
     BNode.prototype._balance_tree = function (changedBNode) {
         var _a, _b, _c, _d, _e, _f, _g, _h, _j;
@@ -1010,6 +940,7 @@ var Testing = /** @class */ (function () {
         this.deleteTest001();
         this.deleteTest002();
         this.deleteTest003();
+        // this.deleteTest004();
         console.log("Works");
     };
     Testing.prototype.insertionTest001 = function () {
@@ -1146,23 +1077,19 @@ var Testing = /** @class */ (function () {
     };
     Testing.prototype.deleteTest004 = function () {
         var set = [];
-        var cur = new BNode(undefined, 6);
-        while (true) {
-            if (set.length > 10000) {
-                if (Math.random() < 0.40) {
-                    var random_number = Math.floor(Math.random() * 100000);
-                    while (set.includes(random_number)) {
-                        random_number = Math.floor(Math.random() * 100000);
-                    }
-                    cur.insert_child(random_number, "hi");
-                    set.push(random_number);
+        var cur = new BNode(undefined, 4);
+        var empty = false;
+        for (var i = 0; i < 10000; i++) {
+            if (empty) {
+                if (set.length === 1) {
+                    empty = false;
                 }
-                else {
-                    var random_index = Math.floor(Math.random() * set.length);
-                    // console.log("deleting " + set[random_index]);
-                    cur = cur.delete(set[random_index]);
-                    set.splice(random_index, 1);
-                }
+                var random_index = Math.floor(Math.random() * set.length);
+                cur = cur.delete(set[random_index]);
+                set.splice(random_index, 1);
+            }
+            if (set.length > 1000) {
+                empty = true;
             }
             else if (set.length < 2) {
                 var random_number = Math.floor(Math.random() * 100000);
