@@ -3,22 +3,6 @@ import { Mutex } from 'async-mutex';
 import { BUBBLE_UP_WAIT_TIME,TRANSACTION_WAIT_TIME } from "src/app/constants"; 
 import { TransactionService } from "src/app/services/transaction.service";
 
-// export interface Node {
-//   id : number,
-//   depth : number,
-//   breadth : number,
-//   parent : number | null,
-//   value: any,
-// }
-// export interface Transaction{
-//   writes: any[],
-//   reads: any[]
-// }
-
-// export const BUBBLE_UP_WAIT_TIME:number = 500;   // How long(ms) does each node wait for more transactions before bubbleling up
-// export const TRANSACTION_WAIT_TIME:number = 30; // How long(ms) does each node wait before sending the data to his parent (applies after bubble up wait time)
-
-
 type Key = number;
 type Nullable<K> = undefined | K;
 
