@@ -19,7 +19,12 @@
     "@angular/platform-browser-dynamic": "^16.0.0",
     "@angular/router": "^16.0.0",
     "@emailjs/browser": "^4.3.3",
+    "async-mutex": "^0.5.0",
+    "chart.js": "^4.4.3",
+    "chartjs-chart-graph": "^4.3.1",
+    "chartjs-plugin-datalabels": "^2.2.0",
     "emailjs-com": "^3.2.0",
+    "hex-color-opacity": "^0.4.2",
     "rxjs": "~7.8.0",
     "tslib": "^2.3.0",
     "zone.js": "~0.13.0"

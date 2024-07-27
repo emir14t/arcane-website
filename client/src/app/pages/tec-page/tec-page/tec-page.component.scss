@@ -1,0 +1,37 @@
+@import '../../../../styles';
+
+.container{
+    padding: 100px;
+    background-color: $white-color;
+    .text{
+        padding: 50px;
+
+        h2 {
+            font-size: 4rem;
+            margin-bottom: 50px;
+            color: $black-color;
+            font-family: $primary-font;
+            text-align: center;
+        }
+
+        h3 {
+            font-size: 1.5rem;
+            margin-bottom: 30px;
+            color: $primary-color;
+            font-family: $secondary-font;
+            text-align: center;
+        }
+    }   
+
+    .graph-container {
+        display: flex;
+        padding: 0px;
+        margin: 0px;
+        gap: 20px; 
+    }
+
+    .graph-container app-graph,
+    .graph-container app-chart {
+        flex: 1;
+    }
+}
