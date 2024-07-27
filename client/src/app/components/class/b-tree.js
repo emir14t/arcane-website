@@ -83,9 +83,6 @@ var BNode = /** @class */ (function () {
         this.minNumberOfThresholds = Math.floor((maxNumberOfThresholds) / 2);
     }
     //Signals
-    BNode.prototype.parent_changed = function (newParent) {
-        //console.log("Root has changed!");
-    };
     BNode.prototype.transaction_is_arriving = function (id) {
         // this.transactionService.transactionIsArriving(id);
     };
@@ -100,7 +97,6 @@ var BNode = /** @class */ (function () {
             });
         });
     };
-    // Called whenever a node receives a transaction
     BNode.prototype._data_collection = function (transactions) {
         return __awaiter(this, void 0, void 0, function () {
             var im_collecting;
@@ -127,7 +123,6 @@ var BNode = /** @class */ (function () {
             });
         });
     };
-    // Called whenever a node bubbles up a transaction
     BNode.prototype._bubble_up = function () {
         return __awaiter(this, void 0, void 0, function () {
             return __generator(this, function (_a) {
@@ -286,7 +281,6 @@ var BNode = /** @class */ (function () {
             var tmpParent = new BNode(undefined, this.maxNumberOfThresholds); //, this.transactionService
             tmpParent.children.push(this);
             this.parent = tmpParent;
-            this.parent_changed(tmpParent);
             return tmpParent._split_node(userID, this);
         }
         return this.parent._split_node(userID, this);
@@ -322,32 +316,34 @@ var BNode = /** @class */ (function () {
             this.datas.unshift(dataToPromote);
         }
         //Finding the spot to add it
-        else if (keyToPromote < this.thresholds[0]) {
-            if (this.children[0] !== childBNode) {
-                throw new Error("Inconsistencies when adding BNodes (children doesn't represent child)");
-            }
-            this.children.unshift(newBNode);
-            this.thresholds.unshift(keyToPromote);
-            this.datas.unshift(dataToPromote);
-        }
-        else if (keyToPromote > this.thresholds[this.thresholds.length - 1]) {
-            this.children.splice(this.children.length - 1, 0, newBNode);
-            this.thresholds.push(keyToPromote);
-            this.datas.push(dataToPromote);
-        }
-        else if (keyToPromote === this.thresholds[this.thresholds.length - 1]) {
-            throw new Error("Promoted BNode already exists in his parent's dataset. Node data:\'" + this.thresholds + "\', keyToPromote:" + keyToPromote);
-        }
         else {
-            for (var i = 0; i < this.thresholds.length - 1; i++) {
-                if (keyToPromote > this.thresholds[i] && keyToPromote < this.thresholds[i + 1]) {
-                    this.children.splice(i + 1, 0, newBNode);
-                    this.thresholds.splice(i + 1, 0, keyToPromote);
-                    this.datas.splice(i + 1, 0, dataToPromote);
-                    break;
+            if (keyToPromote < this.thresholds[0]) {
+                if (this.children[0] !== childBNode) {
+                    throw new Error("Inconsistencies when adding BNodes (children doesn't represent child)");
                 }
-                else if (keyToPromote == this.thresholds[i]) {
-                    throw new Error("Promoted BNode already exists in his parent's dataset. Node data:\'" + this.thresholds + "\', keyToPromote:" + keyToPromote);
+                this.children.unshift(newBNode);
+                this.thresholds.unshift(keyToPromote);
+                this.datas.unshift(dataToPromote);
+            }
+            else if (keyToPromote > this.thresholds[this.thresholds.length - 1]) {
+                this.children.splice(this.children.length - 1, 0, newBNode);
+                this.thresholds.push(keyToPromote);
+                this.datas.push(dataToPromote);
+            }
+            else if (keyToPromote === this.thresholds[this.thresholds.length - 1]) {
+                throw new Error("Promoted BNode already exists in his parent's dataset. Node data:\'" + this.thresholds + "\', keyToPromote:" + keyToPromote);
+            }
+            else {
+                for (var i = 0; i < this.thresholds.length - 1; i++) {
+                    if (keyToPromote > this.thresholds[i] && keyToPromote < this.thresholds[i + 1]) {
+                        this.children.splice(i + 1, 0, newBNode);
+                        this.thresholds.splice(i + 1, 0, keyToPromote);
+                        this.datas.splice(i + 1, 0, dataToPromote);
+                        break;
+                    }
+                    else if (keyToPromote == this.thresholds[i]) {
+                        throw new Error("Promoted BNode already exists in his parent's dataset. Node data:\'" + this.thresholds + "\', keyToPromote:" + keyToPromote);
+                    }
                 }
             }
         }
@@ -385,7 +381,6 @@ var BNode = /** @class */ (function () {
             var tmpParent = new BNode(undefined, this.maxNumberOfThresholds); //, this.transactionService
             tmpParent.children.push(this);
             this.parent = tmpParent;
-            this.parent_changed(tmpParent);
             return tmpParent._split_node_nr(this);
         }
         return this.parent._split_node_nr(this);
@@ -421,32 +416,34 @@ var BNode = /** @class */ (function () {
             this.datas.unshift(dataToPromote);
         }
         //Finding the spot to add it
-        else if (keyToPromote < this.thresholds[0]) {
-            if (this.children[0] !== childBNode) {
-                throw new Error("Inconsistencies when adding BNodes (children doesn't represent child)");
-            }
-            this.children.unshift(newBNode);
-            this.thresholds.unshift(keyToPromote);
-            this.datas.unshift(dataToPromote);
-        }
-        else if (keyToPromote > this.thresholds[this.thresholds.length - 1]) {
-            this.children.splice(this.children.length - 1, 0, newBNode);
-            this.thresholds.push(keyToPromote);
-            this.datas.push(dataToPromote);
-        }
-        else if (keyToPromote === this.thresholds[this.thresholds.length - 1]) {
-            throw new Error("Promoted BNode already exists in his parent's dataset. Node data:\'" + this.thresholds + "\', keyToPromote:" + keyToPromote);
-        }
         else {
-            for (var i = 0; i < this.thresholds.length - 1; i++) {
-                if (keyToPromote > this.thresholds[i] && keyToPromote < this.thresholds[i + 1]) {
-                    this.children.splice(i + 1, 0, newBNode);
-                    this.thresholds.splice(i + 1, 0, keyToPromote);
-                    this.datas.splice(i + 1, 0, dataToPromote);
-                    break;
+            if (keyToPromote < this.thresholds[0]) {
+                if (this.children[0] !== childBNode) {
+                    throw new Error("Inconsistencies when adding BNodes (children doesn't represent child)");
                 }
-                else if (keyToPromote == this.thresholds[i]) {
-                    throw new Error("Promoted BNode already exists in his parent's dataset. Node data:\'" + this.thresholds + "\', keyToPromote:" + keyToPromote);
+                this.children.unshift(newBNode);
+                this.thresholds.unshift(keyToPromote);
+                this.datas.unshift(dataToPromote);
+            }
+            else if (keyToPromote > this.thresholds[this.thresholds.length - 1]) {
+                this.children.splice(this.children.length - 1, 0, newBNode);
+                this.thresholds.push(keyToPromote);
+                this.datas.push(dataToPromote);
+            }
+            else if (keyToPromote === this.thresholds[this.thresholds.length - 1]) {
+                throw new Error("Promoted BNode already exists in his parent's dataset. Node data:\'" + this.thresholds + "\', keyToPromote:" + keyToPromote);
+            }
+            else {
+                for (var i = 0; i < this.thresholds.length - 1; i++) {
+                    if (keyToPromote > this.thresholds[i] && keyToPromote < this.thresholds[i + 1]) {
+                        this.children.splice(i + 1, 0, newBNode);
+                        this.thresholds.splice(i + 1, 0, keyToPromote);
+                        this.datas.splice(i + 1, 0, dataToPromote);
+                        break;
+                    }
+                    else if (keyToPromote == this.thresholds[i]) {
+                        throw new Error("Promoted BNode already exists in his parent's dataset. Node data:\'" + this.thresholds + "\', keyToPromote:" + keyToPromote);
+                    }
                 }
             }
         }
@@ -528,6 +525,37 @@ var BNode = /** @class */ (function () {
         var rightChild = this.children[index + 1];
         //Case 2.b: Rotation
         //Case 2.ba: Left child has more entries
+        var childToDeleteFrom = this._can_promote_left(leftChild);
+        if (typeof childToDeleteFrom !== "undefined") {
+            var indexToRem = childToDeleteFrom.thresholds.length - 1;
+            var thresholdToRem = childToDeleteFrom.thresholds[indexToRem];
+            var dataToRem = childToDeleteFrom.datas[indexToRem];
+            childToDeleteFrom._delete_wrapper(indexToRem);
+            this.thresholds[index] = thresholdToRem;
+            this.datas[index] = dataToRem;
+            return this._should_balance_tree();
+        }
+        //Case 2.bb: Right child has more (or equal) entries
+        childToDeleteFrom = this._can_promote_right(rightChild);
+        if (typeof childToDeleteFrom !== "undefined") {
+            var thresholdToRem = childToDeleteFrom.thresholds[0];
+            var dataToRem = childToDeleteFrom.datas[0];
+            childToDeleteFrom._delete_wrapper(0);
+            this.thresholds[index] = thresholdToRem;
+            this.datas[index] = dataToRem;
+            return this._should_balance_tree();
+        }
+        //Case 2.a: Compression
+        if (leftChild.thresholds.length + rightChild.thresholds.length <= this.maxNumberOfThresholds) {
+            this.children.splice(index + 1, 1);
+            this.datas.splice(index, 1);
+            this.thresholds.splice(index, 1);
+            this._naive_merge(leftChild, rightChild);
+            return this._should_balance_tree();
+        }
+        throw new Error("Unresolved here");
+    };
+    BNode.prototype._can_promote_left = function (leftChild) {
         var childToDeleteFrom = leftChild;
         var possible = false;
         while (childToDeleteFrom.children.length !== 0) {
@@ -540,23 +568,13 @@ var BNode = /** @class */ (function () {
             possible = true;
         }
         if (possible) {
-            var indexToRem = childToDeleteFrom.thresholds.length - 1;
-            var thresholdToRem = childToDeleteFrom.thresholds[indexToRem];
-            var dataToRem = childToDeleteFrom.datas[indexToRem];
-            childToDeleteFrom._delete_wrapper(indexToRem);
-            this.thresholds[index] = thresholdToRem;
-            this.datas[index] = dataToRem;
-            if (this.datas.length < this.minNumberOfThresholds) {
-                if (typeof this.parent == "undefined") {
-                    return this;
-                }
-                return this.parent._balance_tree(this);
-            }
-            return this;
+            return childToDeleteFrom;
         }
-        //Case 2.bb: Right child has more (or equal) entries
-        childToDeleteFrom = rightChild;
-        possible = false;
+        return undefined;
+    };
+    BNode.prototype._can_promote_right = function (rightChild) {
+        var childToDeleteFrom = rightChild;
+        var possible = false;
         while (childToDeleteFrom.children.length !== 0) {
             if (childToDeleteFrom.thresholds.length > this.minNumberOfThresholds) {
                 possible = true;
@@ -567,49 +585,20 @@ var BNode = /** @class */ (function () {
             possible = true;
         }
         if (possible) {
-            var thresholdToRem = childToDeleteFrom.thresholds[0];
-            var dataToRem = childToDeleteFrom.datas[0];
-            childToDeleteFrom._delete_wrapper(0);
-            this.thresholds[index] = thresholdToRem;
-            this.datas[index] = dataToRem;
-            if (this.datas.length < this.minNumberOfThresholds) {
-                if (typeof this.parent == "undefined") {
-                    return this;
-                }
-                return this.parent._balance_tree(this);
-            }
-            return this;
+            return childToDeleteFrom;
         }
-        //Case 2.a: Compression
-        if (leftChild.thresholds.length + rightChild.thresholds.length < this.maxNumberOfThresholds) {
-            this.children.splice(index + 1, 1);
-            this.datas.splice(index, 1);
-            this.thresholds.splice(index, 1);
-            this._stupid_merge(leftChild, rightChild);
-            if (this.datas.length < this.minNumberOfThresholds) {
-                if (typeof this.parent == "undefined") {
-                    return this;
-                }
-                return this.parent._balance_tree(this);
-            }
-            return this;
-        }
-        else if ((leftChild.thresholds.length + rightChild.thresholds.length) === this.maxNumberOfThresholds) {
-            this.children.splice(index + 1, 1);
-            this.datas.splice(index, 1);
-            this.thresholds.splice(index, 1);
-            this._stupid_merge(leftChild, rightChild);
-            if (this.datas.length < this.minNumberOfThresholds) {
-                if (typeof this.parent == "undefined") {
-                    return this;
-                }
-                return this.parent._balance_tree(this);
-            }
-            return this;
-        }
-        throw new Error("Unresolved here");
+        return undefined;
     };
-    BNode.prototype._stupid_merge = function (BNode1, BNode2) {
+    BNode.prototype._should_balance_tree = function () {
+        if (this.datas.length < this.minNumberOfThresholds) {
+            if (typeof this.parent == "undefined") {
+                return this;
+            }
+            return this.parent._balance_tree(this);
+        }
+        return this;
+    };
+    BNode.prototype._naive_merge = function (BNode1, BNode2) {
         var _a, _b, _c, _d, _e;
         if (BNode1.children.length === 0) {
             (_a = BNode1.datas).push.apply(_a, BNode2.datas);
@@ -625,56 +614,74 @@ var BNode = /** @class */ (function () {
             var child = _f[_i];
             child.parent = BNode1;
         }
-        this._stupid_merge(left, right);
+        this._naive_merge(left, right);
     };
     BNode.prototype._balance_tree = function (changedBNode) {
-        var _a, _b, _c, _d, _e, _f, _g, _h, _j;
+        // Making sure that we need to do this
         if (changedBNode.thresholds.length >= this.minNumberOfThresholds) {
             return this;
         }
         //Finding the index
-        var index = 0;
-        var found = false;
-        for (var _i = 0, _k = this.children; _i < _k.length; _i++) {
-            var child = _k[_i];
-            if (child === changedBNode) {
-                found = true;
-                break;
-            }
-            index++;
-        }
-        if (!found) {
-            throw new Error("Provided changedBNode doesn't exist in children list");
-        }
+        var index = this.get_index_of(changedBNode);
         // See if we can compress the entire thing
-        var total = this.thresholds.length;
-        for (var _l = 0, _m = this.children; _l < _m.length; _l++) {
-            var child = _m[_l];
-            total += child.thresholds.length;
-        }
-        if (total <= this.maxNumberOfThresholds) {
-            var iter = this.thresholds.length;
-            for (var i = iter; i >= 0; i--) {
-                (_a = this.thresholds).splice.apply(_a, __spreadArray([i, 0], this.children[i].thresholds, false));
-                (_b = this.datas).splice.apply(_b, __spreadArray([i, 0], this.children[i].datas, false));
-            }
-            var tmpChildren = this.children;
-            this.children = [];
-            for (var _o = 0, tmpChildren_1 = tmpChildren; _o < tmpChildren_1.length; _o++) {
-                var child = tmpChildren_1[_o];
-                (_c = this.children).push.apply(_c, child.children);
-            }
-            for (var _p = 0, _q = this.children; _p < _q.length; _p++) {
-                var child = _q[_p];
-                child.parent = this;
-            }
-            if ((typeof this.parent !== "undefined") && (total < (this.minNumberOfThresholds))) {
-                return this.parent._balance_tree(this);
-            }
-            return this;
+        if (this._can_compress_all()) {
+            return this._compress_all_children_into_me();
         }
         // Case 2: Rotate
         // If left child exists
+        var tmp_ret = this._try_rotate_left(index);
+        if (typeof tmp_ret !== "undefined") {
+            return tmp_ret;
+        }
+        // If the right child exists
+        tmp_ret = this._try_rotate_right(index);
+        if (typeof tmp_ret !== "undefined") {
+            return tmp_ret;
+        }
+        // Case 1: Compress
+        // If the left child exists
+        tmp_ret = this._try_compress_left(index);
+        if (typeof tmp_ret !== "undefined") {
+            return tmp_ret;
+        }
+        // If the right child exists
+        tmp_ret = this._try_compress_right(index);
+        if (typeof tmp_ret !== "undefined") {
+            return tmp_ret;
+        }
+        throw new Error("Balancing failed");
+    };
+    BNode.prototype._can_compress_all = function () {
+        var total = this.thresholds.length;
+        for (var _i = 0, _a = this.children; _i < _a.length; _i++) {
+            var child = _a[_i];
+            total += child.thresholds.length;
+        }
+        return (total <= this.maxNumberOfThresholds);
+    };
+    BNode.prototype._compress_all_children_into_me = function () {
+        var _a, _b, _c;
+        var iter = this.thresholds.length;
+        for (var i = iter; i >= 0; i--) {
+            (_a = this.thresholds).splice.apply(_a, __spreadArray([i, 0], this.children[i].thresholds, false));
+            (_b = this.datas).splice.apply(_b, __spreadArray([i, 0], this.children[i].datas, false));
+        }
+        var tmpChildren = this.children;
+        this.children = [];
+        for (var _i = 0, tmpChildren_1 = tmpChildren; _i < tmpChildren_1.length; _i++) {
+            var child = tmpChildren_1[_i];
+            (_c = this.children).push.apply(_c, child.children);
+        }
+        for (var _d = 0, _e = this.children; _d < _e.length; _d++) {
+            var child = _e[_d];
+            child.parent = this;
+        }
+        if (typeof this.parent !== "undefined") {
+            return this.parent._balance_tree(this);
+        }
+        return this;
+    };
+    BNode.prototype._try_rotate_left = function (index) {
         if (index - 1 >= 0) {
             var child = this.children[index - 1];
             var child2 = this.children[index];
@@ -699,7 +706,9 @@ var BNode = /** @class */ (function () {
                 return this;
             }
         }
-        // If the right child exists
+        return undefined;
+    };
+    BNode.prototype._try_rotate_right = function (index) {
         if (index + 1 < this.children.length) {
             var child = this.children[index + 1];
             var child2 = this.children[index];
@@ -723,19 +732,21 @@ var BNode = /** @class */ (function () {
                 return this;
             }
         }
-        // Case 1: Compress
-        // If the left child exists
+        return undefined;
+    };
+    BNode.prototype._try_compress_right = function (index) {
+        var _a, _b, _c;
         if (index - 1 >= 0) {
             if (this.children[index - 1].thresholds.length + this.children[index].thresholds.length < this.maxNumberOfThresholds) {
                 var child = this.children[index - 1];
                 var child2 = this.children.splice(index, 1)[0];
                 var tmpKey = this.thresholds.splice(index - 1, 1)[0];
                 var tmpData = this.datas.splice(index - 1, 1)[0];
-                (_d = child.thresholds).push.apply(_d, __spreadArray([tmpKey], child2.thresholds, false));
-                (_e = child.datas).push.apply(_e, __spreadArray([tmpData], child2.datas, false));
-                (_f = child.children).push.apply(_f, child2.children);
-                for (var _r = 0, _s = child.children; _r < _s.length; _r++) {
-                    var tmpChild = _s[_r];
+                (_a = child.thresholds).push.apply(_a, __spreadArray([tmpKey], child2.thresholds, false));
+                (_b = child.datas).push.apply(_b, __spreadArray([tmpData], child2.datas, false));
+                (_c = child.children).push.apply(_c, child2.children);
+                for (var _i = 0, _d = child.children; _i < _d.length; _i++) {
+                    var tmpChild = _d[_i];
                     tmpChild.parent = child;
                 }
                 this._balance_tree(this.children[index - 1]);
@@ -745,18 +756,21 @@ var BNode = /** @class */ (function () {
                 return this;
             }
         }
-        // If the right child exists
+        return undefined;
+    };
+    BNode.prototype._try_compress_left = function (index) {
+        var _a, _b, _c;
         if (index + 1 < this.children.length) {
             if (this.children[index].thresholds.length + this.children[index + 1].thresholds.length < this.maxNumberOfThresholds) {
                 var child = this.children[index];
                 var child2 = this.children.splice(index + 1, 1)[0];
                 var tmpKey = this.thresholds.splice(index, 1)[0];
                 var tmpData = this.datas.splice(index, 1)[0];
-                (_g = child.thresholds).push.apply(_g, __spreadArray([tmpKey], child2.thresholds, false));
-                (_h = child.datas).push.apply(_h, __spreadArray([tmpData], child2.datas, false));
-                (_j = child.children).push.apply(_j, child2.children);
-                for (var _t = 0, _u = child.children; _t < _u.length; _t++) {
-                    var tmpChild = _u[_t];
+                (_a = child.thresholds).push.apply(_a, __spreadArray([tmpKey], child2.thresholds, false));
+                (_b = child.datas).push.apply(_b, __spreadArray([tmpData], child2.datas, false));
+                (_c = child.children).push.apply(_c, child2.children);
+                for (var _i = 0, _d = child.children; _i < _d.length; _i++) {
+                    var tmpChild = _d[_i];
                     tmpChild.parent = child;
                 }
                 this._balance_tree(this.children[index]);
@@ -766,7 +780,7 @@ var BNode = /** @class */ (function () {
                 return this;
             }
         }
-        throw new Error("Balancing failed");
+        return undefined;
     };
     // Validation algorithm (checks the integrety of the BTree)
     BNode.prototype.validate_tree = function () {
@@ -1128,8 +1142,8 @@ var Testing = /** @class */ (function () {
             cur.validate_tree();
             // console.log(set.length)
         }
-        console.log(set.length);
-        cur.print_tree();
+        // console.log(set.length)
+        // cur.print_tree()
     };
     Testing.prototype.test_bnode_tree_to_node_map = function () {
         var cur = new BNode(undefined, 5);

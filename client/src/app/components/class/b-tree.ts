@@ -35,8 +35,11 @@ export class User{
 }
 export class BNode<Data> {
   //Signals
-  parent_changed(newParent:BNode<Data>){
-    //console.log("Root has changed!");
+  transaction_is_arriving(id: number){
+    // this.transactionService.transactionIsArriving(id);
+  }
+  transaction_is_leaving(id: number){
+    // this.transactionService.transactionIsLeaving(id);
   }
   
   // Data
@@ -48,7 +51,6 @@ export class BNode<Data> {
   private minNumberOfThresholds:number = -1;
 
   // Constructor
-  
   constructor(parent:Nullable<BNode<Data>>, maxNumberOfThresholds:number){ //, private transactionService: TransactionService
     //Initialization
     if (maxNumberOfThresholds < 2){throw new Error("Disallowed initialization");}
@@ -58,20 +60,12 @@ export class BNode<Data> {
     this.minNumberOfThresholds = Math.floor((maxNumberOfThresholds)/2)
   }
 
-  transaction_is_arriving(id: number){
-    // this.transactionService.transactionIsArriving(id);
-  }
-  transaction_is_leaving(id: number){
-    // this.transactionService.transactionIsLeaving(id);
-  }
-
   // Transactions
   private my_lock = new Mutex();
   private all_cur_transactions:Array<Transaction> = []
   async create_transaction(transaction:Transaction){
     this._data_collection([transaction]);
   }
-  // Called whenever a node receives a transaction
   private async _data_collection(transactions:Array<Transaction>):Promise<void>{
     this.transaction_is_arriving(this.thresholds[0]);
     await this.my_lock.acquire();
@@ -86,7 +80,6 @@ export class BNode<Data> {
       this.my_lock.release();
     }
   }
-  // Called whenever a node bubbles up a transaction
   private async _bubble_up(){
     this.transaction_is_leaving(this.thresholds[0]);
     await this.my_lock.acquire();
@@ -244,7 +237,6 @@ export class BNode<Data> {
       let tmpParent:BNode<Data> = new BNode(undefined, this.maxNumberOfThresholds); //, this.transactionService
       tmpParent.children.push(this);
       this.parent = tmpParent;
-      this.parent_changed(tmpParent);
       return tmpParent._split_node(userID, this);
     }
 
@@ -284,32 +276,34 @@ export class BNode<Data> {
       this.datas.unshift(dataToPromote);
     }
     //Finding the spot to add it
-    else if (keyToPromote < this.thresholds[0]){
-      if (this.children[0] !== childBNode){
-        throw new Error("Inconsistencies when adding BNodes (children doesn't represent child)");
-      }
-      this.children.unshift(newBNode);
-      this.thresholds.unshift(keyToPromote);
-      this.datas.unshift(dataToPromote);
-    }
-    else if (keyToPromote > this.thresholds[this.thresholds.length - 1]){
-      this.children.splice(this.children.length - 1, 0, newBNode);
-      this.thresholds.push(keyToPromote);
-      this.datas.push(dataToPromote);
-    }
-    else if (keyToPromote === this.thresholds[this.thresholds.length - 1]){
-      throw new Error("Promoted BNode already exists in his parent's dataset. Node data:\'" + this.thresholds + "\', keyToPromote:" + keyToPromote);
-    }
-    else{
-      for (let i:number = 0; i < this.thresholds.length - 1; i++){
-        if (keyToPromote > this.thresholds[i] && keyToPromote < this.thresholds[i+1]){
-          this.children.splice(i+1, 0, newBNode);
-          this.thresholds.splice(i+1, 0, keyToPromote);
-          this.datas.splice(i+1, 0, dataToPromote);
-          break;
+    else {
+      if (keyToPromote < this.thresholds[0]){
+        if (this.children[0] !== childBNode){
+          throw new Error("Inconsistencies when adding BNodes (children doesn't represent child)");
         }
-        else if (keyToPromote == this.thresholds[i]){
-          throw new Error("Promoted BNode already exists in his parent's dataset. Node data:\'" + this.thresholds + "\', keyToPromote:" + keyToPromote);
+        this.children.unshift(newBNode);
+        this.thresholds.unshift(keyToPromote);
+        this.datas.unshift(dataToPromote);
+      }
+      else if (keyToPromote > this.thresholds[this.thresholds.length - 1]){
+        this.children.splice(this.children.length - 1, 0, newBNode);
+        this.thresholds.push(keyToPromote);
+        this.datas.push(dataToPromote);
+      }
+      else if (keyToPromote === this.thresholds[this.thresholds.length - 1]){
+        throw new Error("Promoted BNode already exists in his parent's dataset. Node data:\'" + this.thresholds + "\', keyToPromote:" + keyToPromote);
+      }
+      else{
+        for (let i:number = 0; i < this.thresholds.length - 1; i++){
+          if (keyToPromote > this.thresholds[i] && keyToPromote < this.thresholds[i+1]){
+            this.children.splice(i+1, 0, newBNode);
+            this.thresholds.splice(i+1, 0, keyToPromote);
+            this.datas.splice(i+1, 0, dataToPromote);
+            break;
+          }
+          else if (keyToPromote == this.thresholds[i]){
+            throw new Error("Promoted BNode already exists in his parent's dataset. Node data:\'" + this.thresholds + "\', keyToPromote:" + keyToPromote);
+          }
         }
       }
     }
@@ -348,7 +342,6 @@ export class BNode<Data> {
       let tmpParent:BNode<Data> = new BNode(undefined, this.maxNumberOfThresholds); //, this.transactionService
       tmpParent.children.push(this);
       this.parent = tmpParent;
-      this.parent_changed(tmpParent);
       return tmpParent._split_node_nr(this);
     }
 
@@ -388,32 +381,34 @@ export class BNode<Data> {
       this.datas.unshift(dataToPromote);
     }
     //Finding the spot to add it
-    else if (keyToPromote < this.thresholds[0]){
+    else {
+      if (keyToPromote < this.thresholds[0]){
       if (this.children[0] !== childBNode){
         throw new Error("Inconsistencies when adding BNodes (children doesn't represent child)");
       }
       this.children.unshift(newBNode);
       this.thresholds.unshift(keyToPromote);
       this.datas.unshift(dataToPromote);
-    }
-    else if (keyToPromote > this.thresholds[this.thresholds.length - 1]){
-      this.children.splice(this.children.length - 1, 0, newBNode);
-      this.thresholds.push(keyToPromote);
-      this.datas.push(dataToPromote);
-    }
-    else if (keyToPromote === this.thresholds[this.thresholds.length - 1]){
-      throw new Error("Promoted BNode already exists in his parent's dataset. Node data:\'" + this.thresholds + "\', keyToPromote:" + keyToPromote);
-    }
-    else{
-      for (let i:number = 0; i < this.thresholds.length - 1; i++){
-        if (keyToPromote > this.thresholds[i] && keyToPromote < this.thresholds[i+1]){
-          this.children.splice(i+1, 0, newBNode);
-          this.thresholds.splice(i+1, 0, keyToPromote);
-          this.datas.splice(i+1, 0, dataToPromote);
-          break;
-        }
-        else if (keyToPromote == this.thresholds[i]){
-          throw new Error("Promoted BNode already exists in his parent's dataset. Node data:\'" + this.thresholds + "\', keyToPromote:" + keyToPromote);
+      }
+      else if (keyToPromote > this.thresholds[this.thresholds.length - 1]){
+        this.children.splice(this.children.length - 1, 0, newBNode);
+        this.thresholds.push(keyToPromote);
+        this.datas.push(dataToPromote);
+      }
+      else if (keyToPromote === this.thresholds[this.thresholds.length - 1]){
+        throw new Error("Promoted BNode already exists in his parent's dataset. Node data:\'" + this.thresholds + "\', keyToPromote:" + keyToPromote);
+      }
+      else{
+        for (let i:number = 0; i < this.thresholds.length - 1; i++){
+          if (keyToPromote > this.thresholds[i] && keyToPromote < this.thresholds[i+1]){
+            this.children.splice(i+1, 0, newBNode);
+            this.thresholds.splice(i+1, 0, keyToPromote);
+            this.datas.splice(i+1, 0, dataToPromote);
+            break;
+          }
+          else if (keyToPromote == this.thresholds[i]){
+            throw new Error("Promoted BNode already exists in his parent's dataset. Node data:\'" + this.thresholds + "\', keyToPromote:" + keyToPromote);
+          }
         }
       }
     }
@@ -503,6 +498,47 @@ export class BNode<Data> {
 
     //Case 2.b: Rotation
     //Case 2.ba: Left child has more entries
+    let childToDeleteFrom = this._can_promote_left(leftChild);
+    if (typeof childToDeleteFrom !== "undefined"){
+      let indexToRem:number = childToDeleteFrom.thresholds.length - 1;
+      let thresholdToRem:Key = childToDeleteFrom.thresholds[indexToRem];
+      let dataToRem:Data = childToDeleteFrom.datas[indexToRem];
+
+      childToDeleteFrom._delete_wrapper(indexToRem);
+
+      this.thresholds[index] = thresholdToRem;
+      this.datas[index] = dataToRem;
+      
+      return this._should_balance_tree()
+    }
+
+    //Case 2.bb: Right child has more (or equal) entries
+    childToDeleteFrom = this._can_promote_right(rightChild)
+    if (typeof childToDeleteFrom !== "undefined"){
+      let thresholdToRem:Key = childToDeleteFrom.thresholds[0];
+      let dataToRem:Data = childToDeleteFrom.datas[0];
+
+      childToDeleteFrom._delete_wrapper(0);
+
+      this.thresholds[index] = thresholdToRem;
+      this.datas[index] = dataToRem;
+      
+      return this._should_balance_tree()
+    }
+
+    //Case 2.a: Compression
+    if (leftChild.thresholds.length + rightChild.thresholds.length <= this.maxNumberOfThresholds){
+      this.children.splice(index + 1, 1);
+      this.datas.splice(index, 1);
+      this.thresholds.splice(index, 1);
+
+      this._naive_merge(leftChild, rightChild);
+
+      return this._should_balance_tree()
+    }
+    throw new Error("Unresolved here");
+  }
+  private _can_promote_left(leftChild:BNode<Data>):Nullable<BNode<Data>>{
     let childToDeleteFrom = leftChild;
     let possible = false;
     while(childToDeleteFrom.children.length !== 0){
@@ -514,28 +550,15 @@ export class BNode<Data> {
     if (childToDeleteFrom.thresholds.length > this.minNumberOfThresholds){
       possible = true;
     }
-    if (possible){
-      let indexToRem:number = childToDeleteFrom.thresholds.length - 1;
-      let thresholdToRem:Key = childToDeleteFrom.thresholds[indexToRem];
-      let dataToRem:Data = childToDeleteFrom.datas[indexToRem];
 
-      childToDeleteFrom._delete_wrapper(indexToRem);
-
-      this.thresholds[index] = thresholdToRem;
-      this.datas[index] = dataToRem;
-      
-      if (this.datas.length < this.minNumberOfThresholds){
-        if (typeof this.parent == "undefined"){
-          return this;
-        }
-        return (this.parent as BNode<Data>)._balance_tree(this);
-      }
-      return this;
+    if(possible){
+      return childToDeleteFrom
     }
-
-    //Case 2.bb: Right child has more (or equal) entries
-    childToDeleteFrom = rightChild;
-    possible = false;
+    return undefined;
+  }
+  private _can_promote_right(rightChild:BNode<Data>):Nullable<BNode<Data>>{
+    let childToDeleteFrom = rightChild;
+    let possible = false;
     while(childToDeleteFrom.children.length !== 0){
       if (childToDeleteFrom.thresholds.length > this.minNumberOfThresholds){
         possible = true;
@@ -545,59 +568,22 @@ export class BNode<Data> {
     if (childToDeleteFrom.thresholds.length > this.minNumberOfThresholds){
       possible = true;
     }
-    if (possible){
-      let thresholdToRem:Key = childToDeleteFrom.thresholds[0];
-      let dataToRem:Data = childToDeleteFrom.datas[0];
 
-      childToDeleteFrom._delete_wrapper(0);
-
-      this.thresholds[index] = thresholdToRem;
-      this.datas[index] = dataToRem;
-      
-      if (this.datas.length < this.minNumberOfThresholds){
-        if (typeof this.parent == "undefined"){
-          return this;
-        }
-        return (this.parent as BNode<Data>)._balance_tree(this);
-      }
-      return this;
+    if(possible){
+      return childToDeleteFrom
     }
-
-    //Case 2.a: Compression
-    if (leftChild.thresholds.length + rightChild.thresholds.length < this.maxNumberOfThresholds){
-      this.children.splice(index + 1, 1);
-      this.datas.splice(index, 1);
-      this.thresholds.splice(index, 1);
-
-      this._stupid_merge(leftChild, rightChild);
-
-      if (this.datas.length < this.minNumberOfThresholds){
-        if (typeof this.parent == "undefined"){
-          return this;
-        }
-        return (this.parent as BNode<Data>)._balance_tree(this);
-      }
-      return this;
-    }
-    else if ((leftChild.thresholds.length + rightChild.thresholds.length) === this.maxNumberOfThresholds){
-      this.children.splice(index + 1, 1);
-      this.datas.splice(index, 1);
-      this.thresholds.splice(index, 1);
-
-      this._stupid_merge(leftChild, rightChild);
-
-      if (this.datas.length < this.minNumberOfThresholds){
-        if (typeof this.parent == "undefined"){
-          return this;
-        }
-        return (this.parent as BNode<Data>)._balance_tree(this);
-      }
-      return this;
-    }
-    throw new Error("Unresolved here");
+    return undefined;
   }
-
-  private _stupid_merge(BNode1:BNode<Data>, BNode2:BNode<Data>){
+  private _should_balance_tree(){
+    if (this.datas.length < this.minNumberOfThresholds){
+      if (typeof this.parent == "undefined"){
+        return this;
+      }
+      return (this.parent as BNode<Data>)._balance_tree(this);
+    }
+    return this;
+  }
+  private _naive_merge(BNode1:BNode<Data>, BNode2:BNode<Data>){
     if (BNode1.children.length === 0){
       BNode1.datas.push(...BNode2.datas)
       BNode1.thresholds.push(...BNode2.thresholds)
@@ -614,57 +600,78 @@ export class BNode<Data> {
       child.parent = BNode1;
     }
 
-    this._stupid_merge(left, right);
+    this._naive_merge(left, right);
   }
   private _balance_tree(changedBNode:BNode<Data>):BNode<Data>{
+    // Making sure that we need to do this
     if (changedBNode.thresholds.length >= this.minNumberOfThresholds){
       return this;
     }
 
     //Finding the index
-    let index:number = 0;
-    let found:boolean = false;
-    
-    for (let child of this.children){
-      if (child === changedBNode){
-        found = true;
-        break;
-      }
-      index++;
-    }
-    if (!found){
-      throw new Error("Provided changedBNode doesn't exist in children list");
-    }
+    let index:number = this.get_index_of(changedBNode)
 
     // See if we can compress the entire thing
-    let total:number = this.thresholds.length;
-    for (let child of this.children){
-      total += child.thresholds.length;
-    }
-    if (total <= this.maxNumberOfThresholds){
-      let iter = this.thresholds.length;
-      for (let i = iter; i >= 0; i--){
-        this.thresholds.splice(i, 0, ...this.children[i].thresholds);
-        this.datas.splice(i, 0, ...this.children[i].datas);
-      }
-
-      let tmpChildren:Array<BNode<Data>> = this.children;
-      this.children = [];
-      for (let child of tmpChildren){
-        this.children.push(...child.children);
-      }
-      for (let child of this.children){
-        child.parent = this;
-      }
-
-      if ((typeof this.parent !== "undefined") && (total < (this.minNumberOfThresholds))){
-        return (this.parent as BNode<Data>)._balance_tree(this);
-      }
-      return this;
+    if (this._can_compress_all()){
+      return this._compress_all_children_into_me()
     }
 
     // Case 2: Rotate
     // If left child exists
+    let tmp_ret = this._try_rotate_left(index);
+    if (typeof tmp_ret !== "undefined"){
+      return tmp_ret;
+    }
+    // If the right child exists
+    tmp_ret = this._try_rotate_right(index);
+    if (typeof tmp_ret !== "undefined"){
+      return tmp_ret;
+    }
+    
+    // Case 1: Compress
+    // If the left child exists
+    tmp_ret = this._try_compress_left(index);
+    if (typeof tmp_ret !== "undefined"){
+      return tmp_ret;
+    }
+    
+    // If the right child exists
+    tmp_ret = this._try_compress_right(index);
+    if (typeof tmp_ret !== "undefined"){
+      return tmp_ret;
+    }
+    
+    throw new Error("Balancing failed");
+  }
+  private _can_compress_all(){
+    let total:number = this.thresholds.length;
+    for (let child of this.children){
+      total += child.thresholds.length;
+    }
+    return (total <= this.maxNumberOfThresholds)
+  }
+  private _compress_all_children_into_me(){
+    let iter = this.thresholds.length;
+    for (let i = iter; i >= 0; i--){
+      this.thresholds.splice(i, 0, ...this.children[i].thresholds);
+      this.datas.splice(i, 0, ...this.children[i].datas);
+    }
+
+    let tmpChildren:Array<BNode<Data>> = this.children;
+    this.children = [];
+    for (let child of tmpChildren){
+      this.children.push(...child.children);
+    }
+    for (let child of this.children){
+      child.parent = this;
+    }
+
+    if (typeof this.parent !== "undefined"){
+      return (this.parent as BNode<Data>)._balance_tree(this);
+    }
+    return this;
+  }
+  private _try_rotate_left(index:number):Nullable<BNode<Data>>{
     if (index - 1 >= 0){
       let child = this.children[index-1];
       let child2 = this.children[index];
@@ -693,7 +700,9 @@ export class BNode<Data> {
         return this;
       }
     }
-    // If the right child exists
+    return undefined;
+  }
+  private _try_rotate_right(index:number):Nullable<BNode<Data>>{
     if (index + 1 < this.children.length){
       let child = this.children[index+1];
       let child2 = this.children[index];
@@ -720,9 +729,9 @@ export class BNode<Data> {
         return this;
       }
     }
-    
-    // Case 1: Compress
-    // If the left child exists
+    return undefined;
+  }
+  private _try_compress_right(index:number):Nullable<BNode<Data>>{
     if (index - 1 >= 0){
       if (this.children[index-1].thresholds.length + this.children[index].thresholds.length < this.maxNumberOfThresholds){
         let child = this.children[index - 1];
@@ -745,7 +754,9 @@ export class BNode<Data> {
         return this;
       }
     }
-    // If the right child exists
+    return undefined;
+  }
+  private _try_compress_left(index:number):Nullable<BNode<Data>>{
     if (index + 1 < this.children.length){
       if (this.children[index].thresholds.length + this.children[index+1].thresholds.length < this.maxNumberOfThresholds){
         let child = this.children[index];
@@ -768,7 +779,7 @@ export class BNode<Data> {
         return this;
       }
     }
-    throw new Error("Balancing failed");
+    return undefined;
   }
   
   // Validation algorithm (checks the integrety of the BTree)
