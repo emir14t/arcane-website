@@ -48,22 +48,23 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.Testing = exports.BNode = exports.UserManagementNode = exports.User = exports.MAX_TRANSACTION_WAIT_TIME = exports.MAX_BUBBLE_UP_WAIT_TIME = exports.MIN_TRANSACTION_WAIT_TIME = exports.MIN_BUBBLE_UP_WAIT_TIME = void 0;
 // import { Node,Transaction } from "src/app/interface/interface";
 var async_mutex_1 = require("async-mutex");
-exports.MIN_BUBBLE_UP_WAIT_TIME = 500; // How long(ms) does each node wait for more transactions before bubbleling up
-exports.MIN_TRANSACTION_WAIT_TIME = 30; // How long(ms) does each node wait before sending the data to his parent (applies after bubble up wait time)
-exports.MAX_BUBBLE_UP_WAIT_TIME = 500; // How long(ms) does each node wait for more transactions before bubbleling up
-exports.MAX_TRANSACTION_WAIT_TIME = 30; // How long(ms) does each node wait before sending the data to his parent (applies after bubble up wait time)
+exports.MIN_BUBBLE_UP_WAIT_TIME = 0; // How long(ms) does each node wait for more transactions before bubbleling up
+exports.MIN_TRANSACTION_WAIT_TIME = 0; // How long(ms) does each node wait before sending the data to his parent (applies after bubble up wait time)
+exports.MAX_BUBBLE_UP_WAIT_TIME = 0; // How long(ms) does each node wait for more transactions before bubbleling up
+exports.MAX_TRANSACTION_WAIT_TIME = 0; // How long(ms) does each node wait before sending the data to his parent (applies after bubble up wait time)
 function process_transactions(transactions) {
     var output = [];
     transactions.forEach(function (t) {
         output.push("transaction : w => ".concat(t.reads.toString(), ", r => ").concat(t.writes.toString()));
     });
-    // console.log(output.toString());
+    console.log(output.toString());
 }
 var User = /** @class */ (function () {
-    function User(userID, data, curUserManagementNode) {
+    function User(userID, data, curUserManagementNode, searchNode) {
         this.userID = userID;
         this.data = data;
         this.curNode = curUserManagementNode;
+        this.searchNode = searchNode;
     }
     // Getters and setters
     User.prototype.update_cur_node = function (newNode) {
@@ -79,8 +80,31 @@ var User = /** @class */ (function () {
         return this.data;
     };
     // Transactions
-    User.prototype.send_transaction = function (transaction) {
-        this.curNode.create_transaction(transaction, this.userID);
+    User.prototype.send_transaction = function (transaction, targets) {
+        return __awaiter(this, void 0, void 0, function () {
+            var _i, targets_1, target, ret;
+            return __generator(this, function (_a) {
+                for (_i = 0, targets_1 = targets; _i < targets_1.length; _i++) {
+                    target = targets_1[_i];
+                    ret = this.searchNode.search(target);
+                    if (typeof ret === "undefined") {
+                        throw new Error("Catchable: Target " + target + "provided doesn't exist");
+                    }
+                    console.log("Sending transaction to " + target);
+                    ret.accept_transaction(transaction, this.userID);
+                }
+                return [2 /*return*/];
+            });
+        });
+    };
+    User.prototype.accept_transaction = function (transaction, from) {
+        return __awaiter(this, void 0, void 0, function () {
+            return __generator(this, function (_a) {
+                console.log("Received transaction from " + from);
+                this.curNode.create_transaction(transaction, this.userID);
+                return [2 /*return*/];
+            });
+        });
     };
     // Delete
     User.prototype.delete_self = function () {
@@ -97,7 +121,8 @@ var User = /** @class */ (function () {
 exports.User = User;
 var UserManagementNode = /** @class */ (function () {
     // Constructor
-    function UserManagementNode(parent, maxNumberOfThresholds) {
+    function UserManagementNode(parent, maxNumberOfThresholds, searchNode) {
+        this.searchNode = searchNode;
         this.children = [];
         this.thresholds = new Array();
         this.datas = new Array();
@@ -124,7 +149,7 @@ var UserManagementNode = /** @class */ (function () {
     UserManagementNode.prototype.create_transaction = function (transaction, userID) {
         return __awaiter(this, void 0, void 0, function () {
             return __generator(this, function (_a) {
-                this._data_collection([transaction]);
+                this._data_collection([transaction], userID);
                 return [2 /*return*/];
             });
         });
@@ -142,9 +167,11 @@ var UserManagementNode = /** @class */ (function () {
                         else {
                             this.transaction_is_arriving(this.thresholds[0]);
                         }
+                        console.log("New data arrived at " + this.thresholds[0]);
                         return [4 /*yield*/, this.my_lock.acquire()];
                     case 1:
                         _b.sent();
+                        // console.log("Data collection lock aquired")
                         try {
                             im_collecting = (this.all_cur_transactions.length === 0);
                             (_a = this.all_cur_transactions).push.apply(_a, transactions);
@@ -166,9 +193,11 @@ var UserManagementNode = /** @class */ (function () {
                 switch (_a.label) {
                     case 0:
                         this.transaction_is_leaving(this.thresholds[0]);
+                        console.log("Bubbling up at " + this.thresholds[0]);
                         return [4 /*yield*/, this.my_lock.acquire()];
                     case 1:
                         _a.sent();
+                        // console.log("Bubbling up lock aquired")
                         try {
                             if (typeof this.parent === "undefined") {
                                 setTimeout(process_transactions.bind(this), Math.random() * (exports.MAX_TRANSACTION_WAIT_TIME - exports.MIN_TRANSACTION_WAIT_TIME) + exports.MIN_TRANSACTION_WAIT_TIME, this.all_cur_transactions);
@@ -282,7 +311,8 @@ var UserManagementNode = /** @class */ (function () {
     UserManagementNode.prototype._add_data_to_node = function (userID, data) {
         //Assuming that the userID doesn't exist in the array
         //Add to arrays
-        var user = new User(userID, data, this);
+        var user = new User(userID, data, this, this.searchNode);
+        this.searchNode.insert_child(userID, user);
         if (this.thresholds.length == 0) {
             this.thresholds.push(userID);
             this.datas.push(user);
@@ -316,7 +346,7 @@ var UserManagementNode = /** @class */ (function () {
     UserManagementNode.prototype._split_node_wrapper_nr = function () {
         //This handles the edge cases before asking parent to split this UserManagementNode
         if (typeof this.parent === "undefined") {
-            var tmpParent = new UserManagementNode(undefined, this.maxNumberOfThresholds); //, this.transactionService
+            var tmpParent = new UserManagementNode(undefined, this.maxNumberOfThresholds, this.searchNode); //, this.transactionService
             tmpParent.children.push(this);
             this.parent = tmpParent;
             return tmpParent._split_node_nr(this);
@@ -325,7 +355,7 @@ var UserManagementNode = /** @class */ (function () {
     };
     UserManagementNode.prototype._split_node_nr = function (childUserManagementNode) {
         //Assuming that childUserManagementNode.parent === this
-        var newUserManagementNode = new UserManagementNode(this, this.maxNumberOfThresholds); //, this.transactionService
+        var newUserManagementNode = new UserManagementNode(this, this.maxNumberOfThresholds, this.searchNode); //, this.transactionService
         var sizePartition1 = Math.floor(childUserManagementNode.thresholds.length / 2);
         var keyToPromote = childUserManagementNode.thresholds[sizePartition1];
         var dataToPromote = childUserManagementNode.datas[sizePartition1];
@@ -397,6 +427,7 @@ var UserManagementNode = /** @class */ (function () {
     };
     // Deletion algorithm (returns a valid UserManagementNode)
     UserManagementNode.prototype.delete = function (userID) {
+        this.searchNode.insert_child(userID, undefined);
         return this._delete_up(userID);
     };
     UserManagementNode.prototype._delete_down = function (userID) {
@@ -924,7 +955,7 @@ var BNode = /** @class */ (function () {
     function BNode(parent, maxNumberOfThresholds) {
         this.children = [];
         this.thresholds = new Array();
-        this.Ds = new Array();
+        this.datas = new Array();
         this.maxNumberOfThresholds = -1;
         this.minNumberOfThresholds = -1;
         //Initialization
@@ -944,7 +975,7 @@ var BNode = /** @class */ (function () {
         if (this.children.length === 0) {
             for (var index = 0; index < this.thresholds.length; index++) {
                 if (userID === this.thresholds[index]) {
-                    return this;
+                    return this.datas[index];
                 }
             }
             return undefined;
@@ -956,7 +987,7 @@ var BNode = /** @class */ (function () {
                 return this.children[index]._search_down(userID);
             }
             else if (userID === threshold) {
-                return this;
+                return this.datas[index];
             }
         }
         return this.children[this.children.length - 1]._search_down(userID);
@@ -979,7 +1010,7 @@ var BNode = /** @class */ (function () {
                 return this.children[index]._search_down(userID);
             }
             else if (userID === threshold) {
-                return this;
+                return this.datas[index];
             }
         }
         return this.parent._search_up(userID);
@@ -991,7 +1022,7 @@ var BNode = /** @class */ (function () {
     BNode.prototype._insert_child_down = function (userID, D) {
         //Base case (leaf)
         if (this.children.length === 0) {
-            return this._add_D_to_node(userID, D);
+            return this._add_data_to_node(userID, D);
         }
         //Iterate over the thresholds to find where the D is
         for (var index = 0; index < this.thresholds.length; index++) {
@@ -1000,7 +1031,8 @@ var BNode = /** @class */ (function () {
                 return this.children[index]._insert_child_down(userID, D);
             }
             else if (userID === threshold) {
-                throw new Error("Cannot add same user twice to the tree");
+                this.datas[index] = D;
+                return this;
             }
         }
         return this.children[this.children.length - 1]._insert_child_down(userID, D);
@@ -1018,37 +1050,44 @@ var BNode = /** @class */ (function () {
                     return this.parent._insert_child_up(userID, D);
                 }
                 if (this.children.length === 0) {
-                    return this._add_D_to_node(userID, D);
+                    return this._add_data_to_node(userID, D);
                 }
                 return this.children[index]._insert_child_down(userID, D);
             }
             else if (userID === threshold) {
-                throw new Error("Cannot add same user twice to the tree");
+                this.datas[index] = D;
+                return this;
             }
         }
         return this.parent._insert_child_up(userID, D);
     };
-    BNode.prototype._add_D_to_node = function (userID, D) {
+    BNode.prototype._add_data_to_node = function (userID, D) {
+        for (var i = 0; i < this.thresholds.length; i++) {
+            if (userID === this.thresholds[i]) {
+                this.datas[i] = D;
+                return this;
+            }
+        }
         //Assuming that the userID doesn't exist in the array
         //Add to arrays
         if (this.thresholds.length == 0) {
             this.thresholds.push(userID);
-            this.Ds.push(D);
+            this.datas.push(D);
         }
         else if (userID < this.thresholds[0]) {
             this.thresholds.unshift(userID);
-            this.Ds.unshift(D);
+            this.datas.unshift(D);
         }
         else if (userID > this.thresholds[this.thresholds.length - 1]) {
             this.thresholds.push(userID);
-            this.Ds.push(D);
+            this.datas.push(D);
         }
         else {
             //Technically can change to bin search but not my problem
             for (var i = 0; i < this.thresholds.length - 1; i++) {
                 if (userID < this.thresholds[i + 1] && userID > this.thresholds[i]) {
                     this.thresholds.splice(i + 1, 0, userID);
-                    this.Ds.splice(i + 1, 0, D);
+                    this.datas.splice(i + 1, 0, D);
                 }
             }
         }
@@ -1076,16 +1115,16 @@ var BNode = /** @class */ (function () {
         var newBNode = new BNode(this, this.maxNumberOfThresholds); //, this.transactionService
         var sizePartition1 = Math.floor(childBNode.thresholds.length / 2);
         var keyToPromote = childBNode.thresholds[sizePartition1];
-        var DToPromote = childBNode.Ds[sizePartition1];
+        var DToPromote = childBNode.datas[sizePartition1];
         //Spliting the BNode into three, the original childBNode pointer, the new newBNode pointer and the new promoted D
-        newBNode.Ds = childBNode.Ds.slice(0, sizePartition1);
+        newBNode.datas = childBNode.datas.slice(0, sizePartition1);
         newBNode.thresholds = childBNode.thresholds.slice(0, sizePartition1);
         newBNode.children = childBNode.children.slice(0, sizePartition1 + 1);
         for (var _i = 0, _a = newBNode.children; _i < _a.length; _i++) {
             var child = _a[_i];
             child.parent = newBNode;
         }
-        childBNode.Ds = childBNode.Ds.slice(sizePartition1 + 1);
+        childBNode.datas = childBNode.datas.slice(sizePartition1 + 1);
         childBNode.thresholds = childBNode.thresholds.slice(sizePartition1 + 1);
         childBNode.children = childBNode.children.slice(sizePartition1 + 1);
         //Add the information to the tree
@@ -1099,7 +1138,7 @@ var BNode = /** @class */ (function () {
             }
             this.children.unshift(newBNode);
             this.thresholds.unshift(keyToPromote);
-            this.Ds.unshift(DToPromote);
+            this.datas.unshift(DToPromote);
         }
         //Finding the spot to add it
         else {
@@ -1109,12 +1148,12 @@ var BNode = /** @class */ (function () {
                 }
                 this.children.unshift(newBNode);
                 this.thresholds.unshift(keyToPromote);
-                this.Ds.unshift(DToPromote);
+                this.datas.unshift(DToPromote);
             }
             else if (keyToPromote > this.thresholds[this.thresholds.length - 1]) {
                 this.children.splice(this.children.length - 1, 0, newBNode);
                 this.thresholds.push(keyToPromote);
-                this.Ds.push(DToPromote);
+                this.datas.push(DToPromote);
             }
             else if (keyToPromote === this.thresholds[this.thresholds.length - 1]) {
                 throw new Error("Promoted BNode already exists in his parent's Dset. Node D:\'" + this.thresholds + "\', keyToPromote:" + keyToPromote);
@@ -1124,7 +1163,7 @@ var BNode = /** @class */ (function () {
                     if (keyToPromote > this.thresholds[i] && keyToPromote < this.thresholds[i + 1]) {
                         this.children.splice(i + 1, 0, newBNode);
                         this.thresholds.splice(i + 1, 0, keyToPromote);
-                        this.Ds.splice(i + 1, 0, DToPromote);
+                        this.datas.splice(i + 1, 0, DToPromote);
                         break;
                     }
                     else if (keyToPromote == this.thresholds[i]) {
@@ -1176,16 +1215,16 @@ var BNode = /** @class */ (function () {
         var newBNode = new BNode(this, this.maxNumberOfThresholds); //, this.transactionService
         var sizePartition1 = Math.floor(childBNode.thresholds.length / 2);
         var keyToPromote = childBNode.thresholds[sizePartition1];
-        var DToPromote = childBNode.Ds[sizePartition1];
+        var DToPromote = childBNode.datas[sizePartition1];
         //Spliting the BNode into three, the original childBNode pointer, the new newBNode pointer and the new promoted D
-        newBNode.Ds = childBNode.Ds.slice(0, sizePartition1);
+        newBNode.datas = childBNode.datas.slice(0, sizePartition1);
         newBNode.thresholds = childBNode.thresholds.slice(0, sizePartition1);
         newBNode.children = childBNode.children.slice(0, sizePartition1 + 1);
         for (var _i = 0, _a = newBNode.children; _i < _a.length; _i++) {
             var child = _a[_i];
             child.parent = newBNode;
         }
-        childBNode.Ds = childBNode.Ds.slice(sizePartition1 + 1);
+        childBNode.datas = childBNode.datas.slice(sizePartition1 + 1);
         childBNode.thresholds = childBNode.thresholds.slice(sizePartition1 + 1);
         childBNode.children = childBNode.children.slice(sizePartition1 + 1);
         //Add the information to the tree
@@ -1199,7 +1238,7 @@ var BNode = /** @class */ (function () {
             }
             this.children.unshift(newBNode);
             this.thresholds.unshift(keyToPromote);
-            this.Ds.unshift(DToPromote);
+            this.datas.unshift(DToPromote);
         }
         //Finding the spot to add it
         else {
@@ -1209,12 +1248,12 @@ var BNode = /** @class */ (function () {
                 }
                 this.children.unshift(newBNode);
                 this.thresholds.unshift(keyToPromote);
-                this.Ds.unshift(DToPromote);
+                this.datas.unshift(DToPromote);
             }
             else if (keyToPromote > this.thresholds[this.thresholds.length - 1]) {
                 this.children.splice(this.children.length - 1, 0, newBNode);
                 this.thresholds.push(keyToPromote);
-                this.Ds.push(DToPromote);
+                this.datas.push(DToPromote);
             }
             else if (keyToPromote === this.thresholds[this.thresholds.length - 1]) {
                 throw new Error("Promoted BNode already exists in his parent's Dset. Node D:\'" + this.thresholds + "\', keyToPromote:" + keyToPromote);
@@ -1224,7 +1263,7 @@ var BNode = /** @class */ (function () {
                     if (keyToPromote > this.thresholds[i] && keyToPromote < this.thresholds[i + 1]) {
                         this.children.splice(i + 1, 0, newBNode);
                         this.thresholds.splice(i + 1, 0, keyToPromote);
-                        this.Ds.splice(i + 1, 0, DToPromote);
+                        this.datas.splice(i + 1, 0, DToPromote);
                         break;
                     }
                     else if (keyToPromote == this.thresholds[i]) {
@@ -1296,9 +1335,9 @@ var BNode = /** @class */ (function () {
         return this._internal_handler(index);
     };
     BNode.prototype._leaf_handler = function (index) {
-        this.Ds.splice(index, 1);
+        this.datas.splice(index, 1);
         this.thresholds.splice(index, 1);
-        if (this.Ds.length < this.minNumberOfThresholds) {
+        if (this.datas.length < this.minNumberOfThresholds) {
             if (typeof this.parent == "undefined") {
                 return this;
             }
@@ -1315,26 +1354,26 @@ var BNode = /** @class */ (function () {
         if (typeof childToDeleteFrom !== "undefined") {
             var indexToRem = childToDeleteFrom.thresholds.length - 1;
             var thresholdToRem = childToDeleteFrom.thresholds[indexToRem];
-            var DToRem = childToDeleteFrom.Ds[indexToRem];
+            var DToRem = childToDeleteFrom.datas[indexToRem];
             childToDeleteFrom._delete_wrapper(indexToRem);
             this.thresholds[index] = thresholdToRem;
-            this.Ds[index] = DToRem;
+            this.datas[index] = DToRem;
             return this._should_balance_tree();
         }
         //Case 2.bb: Right child has more (or equal) entries
         childToDeleteFrom = this._can_promote_right(rightChild);
         if (typeof childToDeleteFrom !== "undefined") {
             var thresholdToRem = childToDeleteFrom.thresholds[0];
-            var DToRem = childToDeleteFrom.Ds[0];
+            var DToRem = childToDeleteFrom.datas[0];
             childToDeleteFrom._delete_wrapper(0);
             this.thresholds[index] = thresholdToRem;
-            this.Ds[index] = DToRem;
+            this.datas[index] = DToRem;
             return this._should_balance_tree();
         }
         //Case 2.a: Compression
         if (leftChild.thresholds.length + rightChild.thresholds.length <= this.maxNumberOfThresholds) {
             this.children.splice(index + 1, 1);
-            this.Ds.splice(index, 1);
+            this.datas.splice(index, 1);
             this.thresholds.splice(index, 1);
             this._naive_merge(leftChild, rightChild);
             return this._should_balance_tree();
@@ -1376,7 +1415,7 @@ var BNode = /** @class */ (function () {
         return undefined;
     };
     BNode.prototype._should_balance_tree = function () {
-        if (this.Ds.length < this.minNumberOfThresholds) {
+        if (this.datas.length < this.minNumberOfThresholds) {
             if (typeof this.parent == "undefined") {
                 return this;
             }
@@ -1387,13 +1426,13 @@ var BNode = /** @class */ (function () {
     BNode.prototype._naive_merge = function (BNode1, BNode2) {
         var _a, _b, _c, _d, _e;
         if (BNode1.children.length === 0) {
-            (_a = BNode1.Ds).push.apply(_a, BNode2.Ds);
+            (_a = BNode1.datas).push.apply(_a, BNode2.datas);
             (_b = BNode1.thresholds).push.apply(_b, BNode2.thresholds);
             return;
         }
         var left = BNode1.children[BNode1.children.length - 1];
         var right = BNode2.children.shift();
-        (_c = BNode1.Ds).push.apply(_c, BNode2.Ds);
+        (_c = BNode1.datas).push.apply(_c, BNode2.datas);
         (_d = BNode1.thresholds).push.apply(_d, BNode2.thresholds);
         (_e = BNode1.children).push.apply(_e, BNode2.children);
         for (var _i = 0, _f = BNode2.children; _i < _f.length; _i++) {
@@ -1450,7 +1489,7 @@ var BNode = /** @class */ (function () {
         var iter = this.thresholds.length;
         for (var i = iter; i >= 0; i--) {
             (_a = this.thresholds).splice.apply(_a, __spreadArray([i, 0], this.children[i].thresholds, false));
-            (_b = this.Ds).splice.apply(_b, __spreadArray([i, 0], this.children[i].Ds, false));
+            (_b = this.datas).splice.apply(_b, __spreadArray([i, 0], this.children[i].datas, false));
         }
         var tmpChildren = this.children;
         this.children = [];
@@ -1474,9 +1513,9 @@ var BNode = /** @class */ (function () {
             if (child.thresholds.length > this.minNumberOfThresholds) {
                 var tmpIndex = child.thresholds.length - 1;
                 var tmpKey = child.thresholds[tmpIndex];
-                var tmpD = child.Ds[tmpIndex];
+                var tmpD = child.datas[tmpIndex];
                 child.thresholds.pop();
-                child.Ds.pop();
+                child.datas.pop();
                 if (child.children.length !== 0) {
                     var tmpChild = child.children[tmpIndex + 1];
                     child.children.pop();
@@ -1484,11 +1523,11 @@ var BNode = /** @class */ (function () {
                     tmpChild.parent = child2;
                 }
                 var tmpKey1 = this.thresholds[index - 1];
-                var tmpD1 = this.Ds[index - 1];
+                var tmpD1 = this.datas[index - 1];
                 this.thresholds[index - 1] = tmpKey;
-                this.Ds[index - 1] = tmpD;
+                this.datas[index - 1] = tmpD;
                 child2.thresholds.unshift(tmpKey1);
-                child2.Ds.unshift(tmpD1);
+                child2.datas.unshift(tmpD1);
                 return this;
             }
         }
@@ -1500,9 +1539,9 @@ var BNode = /** @class */ (function () {
             var child2 = this.children[index];
             if (child.thresholds.length > this.minNumberOfThresholds) {
                 var tmpKey = child.thresholds[0];
-                var tmpD = child.Ds[0];
+                var tmpD = child.datas[0];
                 child.thresholds.shift();
-                child.Ds.shift();
+                child.datas.shift();
                 if (child.children.length !== 0) {
                     var tmpChild = child.children[0];
                     child.children.shift();
@@ -1510,11 +1549,11 @@ var BNode = /** @class */ (function () {
                     tmpChild.parent = child2;
                 }
                 var tmpKey1 = this.thresholds[index];
-                var tmpD1 = this.Ds[index];
+                var tmpD1 = this.datas[index];
                 this.thresholds[index] = tmpKey;
-                this.Ds[index] = tmpD;
+                this.datas[index] = tmpD;
                 child2.thresholds.push(tmpKey1);
-                child2.Ds.push(tmpD1);
+                child2.datas.push(tmpD1);
                 return this;
             }
         }
@@ -1527,9 +1566,9 @@ var BNode = /** @class */ (function () {
                 var child = this.children[index - 1];
                 var child2 = this.children.splice(index, 1)[0];
                 var tmpKey = this.thresholds.splice(index - 1, 1)[0];
-                var tmpD = this.Ds.splice(index - 1, 1)[0];
+                var tmpD = this.datas.splice(index - 1, 1)[0];
                 (_a = child.thresholds).push.apply(_a, __spreadArray([tmpKey], child2.thresholds, false));
-                (_b = child.Ds).push.apply(_b, __spreadArray([tmpD], child2.Ds, false));
+                (_b = child.datas).push.apply(_b, __spreadArray([tmpD], child2.datas, false));
                 (_c = child.children).push.apply(_c, child2.children);
                 for (var _i = 0, _d = child.children; _i < _d.length; _i++) {
                     var tmpChild = _d[_i];
@@ -1551,9 +1590,9 @@ var BNode = /** @class */ (function () {
                 var child = this.children[index];
                 var child2 = this.children.splice(index + 1, 1)[0];
                 var tmpKey = this.thresholds.splice(index, 1)[0];
-                var tmpD = this.Ds.splice(index, 1)[0];
+                var tmpD = this.datas.splice(index, 1)[0];
                 (_a = child.thresholds).push.apply(_a, __spreadArray([tmpKey], child2.thresholds, false));
-                (_b = child.Ds).push.apply(_b, __spreadArray([tmpD], child2.Ds, false));
+                (_b = child.datas).push.apply(_b, __spreadArray([tmpD], child2.datas, false));
                 (_c = child.children).push.apply(_c, child2.children);
                 for (var _i = 0, _d = child.children; _i < _d.length; _i++) {
                     var tmpChild = _d[_i];
@@ -1574,16 +1613,16 @@ var BNode = /** @class */ (function () {
     };
     BNode.prototype._validate_self = function (minNumb, maxNumb) {
         //Validate lengths
-        if (this.Ds.length !== this.thresholds.length) {
-            throw new Error("Ds and Threshold lengths are inconsistent");
+        if (this.datas.length !== this.thresholds.length) {
+            throw new Error("datas and Threshold lengths are inconsistent");
         }
-        if (this.children.length !== 0 && this.Ds.length !== (this.children.length - 1)) {
+        if (this.children.length !== 0 && this.datas.length !== (this.children.length - 1)) {
             throw new Error("Children lengths are inconsistent");
         }
-        if (typeof this.parent !== "undefined" && this.Ds.length < this.minNumberOfThresholds) {
+        if (typeof this.parent !== "undefined" && this.datas.length < this.minNumberOfThresholds) {
             throw new Error("Tree has nodes with less than the minimum amount of nodes ");
         }
-        if (this.Ds.length > this.maxNumberOfThresholds) {
+        if (this.datas.length > this.maxNumberOfThresholds) {
             throw new Error("Tree has nodes with more than the maximum amount of nodes ");
         }
         //Validate ordering
@@ -1687,12 +1726,13 @@ var Testing = /** @class */ (function () {
         this.deleteTest001();
         this.deleteTest002();
         this.deleteTest003();
-        // this.deleteTest004();
+        this.deleteTest004();
         this.deleteTest005();
+        this.deleteTest006();
         console.log("Works");
     };
     Testing.prototype.insertionTest001 = function () {
-        var cur = new UserManagementNode(undefined, 5);
+        var cur = new UserManagementNode(undefined, 5, new BNode(undefined, 10));
         for (var j = 0; j < 5; j++) {
             for (var i = j; i <= 100; i += 5) {
                 if (!cur.insert_child(i, "hi").compare_id(i)) {
@@ -1704,7 +1744,7 @@ var Testing = /** @class */ (function () {
         cur.validate_tree();
     };
     Testing.prototype.insertionTest002 = function () {
-        var cur = new UserManagementNode(undefined, 5);
+        var cur = new UserManagementNode(undefined, 5, new BNode(undefined, 10));
         for (var i = 0; i <= 100; i++) {
             if (!cur.insert_child(i, "hi").compare_id(i)) {
                 throw new Error("Pain lol");
@@ -1714,7 +1754,7 @@ var Testing = /** @class */ (function () {
         cur.validate_tree();
     };
     Testing.prototype.insertionTest003 = function () {
-        var cur = new UserManagementNode(undefined, 6);
+        var cur = new UserManagementNode(undefined, 6, new BNode(undefined, 10));
         for (var i = 100; i >= 0; i--) {
             if (!cur.insert_child(i, "hi").compare_id(i)) {
                 throw new Error("Pain lol");
@@ -1724,7 +1764,7 @@ var Testing = /** @class */ (function () {
         cur.validate_tree();
     };
     Testing.prototype.insertionTest004 = function () {
-        var cur = new UserManagementNode(undefined, 5);
+        var cur = new UserManagementNode(undefined, 5, new BNode(undefined, 10));
         for (var i = 0; i <= 100; i++) {
             if (!cur.insert_child(i, "hi").compare_id(i)) {
                 throw new Error("Pain lol");
@@ -1736,7 +1776,7 @@ var Testing = /** @class */ (function () {
         }
     };
     Testing.prototype.searchTest001 = function () {
-        var cur = new UserManagementNode(undefined, 5);
+        var cur = new UserManagementNode(undefined, 5, new BNode(undefined, 10));
         for (var i = 0; i <= 100; i += 5) {
             cur.insert_child(i, "hi");
         }
@@ -1764,7 +1804,7 @@ var Testing = /** @class */ (function () {
         }
     };
     Testing.prototype.deleteTest001 = function () {
-        var cur = new UserManagementNode(undefined, 5);
+        var cur = new UserManagementNode(undefined, 5, new BNode(undefined, 10));
         for (var i = 0; i <= 1000; i++) {
             cur.insert_child(i, "hi");
         }
@@ -1777,7 +1817,7 @@ var Testing = /** @class */ (function () {
         }
     };
     Testing.prototype.deleteTest002 = function () {
-        var cur = new UserManagementNode(undefined, 5);
+        var cur = new UserManagementNode(undefined, 5, new BNode(undefined, 10));
         var leap = 5;
         var max = 1000;
         for (var j = 0; j < leap; j++) {
@@ -1796,7 +1836,7 @@ var Testing = /** @class */ (function () {
         }
     };
     Testing.prototype.deleteTest003 = function () {
-        var cur = new UserManagementNode(undefined, 5);
+        var cur = new UserManagementNode(undefined, 5, new BNode(undefined, 10));
         var leap = 5;
         var max = 1000;
         for (var j = 0; j < leap; j++) {
@@ -1827,7 +1867,7 @@ var Testing = /** @class */ (function () {
     };
     Testing.prototype.deleteTest004 = function () {
         var set = [];
-        var cur = new UserManagementNode(undefined, 6);
+        var cur = new UserManagementNode(undefined, 6, new BNode(undefined, 10));
         function add_random_node() {
             var random_number = Math.floor(Math.random() * 100000);
             while (set.includes(random_number)) {
@@ -1851,7 +1891,7 @@ var Testing = /** @class */ (function () {
             }
             else if (set.length > 1000) {
                 empty_all = true;
-                console.log("Emptying");
+                console.log("Test4: Emptying");
             }
             else if (set.length < 2) {
                 add_random_node();
@@ -1870,7 +1910,7 @@ var Testing = /** @class */ (function () {
     Testing.prototype.deleteTest005 = function () {
         var set = [];
         var user_set = new Map();
-        var cur = new UserManagementNode(undefined, 6);
+        var cur = new UserManagementNode(undefined, 6, new BNode(undefined, 10));
         function add_random_node() {
             var random_number = Math.floor(Math.random() * 100000);
             while (set.includes(random_number)) {
@@ -1907,7 +1947,7 @@ var Testing = /** @class */ (function () {
             }
             else if (set.length > 1000) {
                 empty_all = true;
-                console.log("Emptying");
+                console.log("Test5: Emptying");
             }
             else if (set.length < 2) {
                 add_random_node();
@@ -1924,16 +1964,82 @@ var Testing = /** @class */ (function () {
             cur.validate_tree();
         }
     };
+    Testing.prototype.deleteTest006 = function () {
+        var set = [];
+        var cur = new BNode(undefined, 10);
+        function add_random_node() {
+            var random_number = Math.floor(Math.random() * 100000);
+            while (set.includes(random_number)) {
+                random_number = Math.floor(Math.random() * 100000);
+            }
+            cur.insert_child(random_number, "hi");
+            set.push(random_number);
+        }
+        function remove_random_node() {
+            var random_index = Math.floor(Math.random() * set.length);
+            cur = cur.delete(set[random_index]);
+            set.splice(random_index, 1);
+        }
+        var empty_all = false;
+        for (var i = 0; i < 200000; i++) {
+            if (set.length === 0) {
+                empty_all = false;
+            }
+            if (empty_all === true) {
+                remove_random_node();
+            }
+            else if (set.length > 1000) {
+                empty_all = true;
+                console.log("Test6: Emptying");
+            }
+            else if (set.length < 2) {
+                add_random_node();
+            }
+            else {
+                if (Math.random() < 0.55) {
+                    add_random_node();
+                }
+                else {
+                    remove_random_node();
+                }
+            }
+            cur.validate_tree();
+        }
+    };
     Testing.prototype.test_UserManagementNode_tree_to_node_map = function () {
-        var cur = new UserManagementNode(undefined, 5);
+        var cur = new UserManagementNode(undefined, 5, new BNode(undefined, 10));
         for (var i = 0; i <= 100; i++) {
             cur.insert_child(i, "hi");
         }
         cur.print_tree();
         console.log(cur.UserManagementNode_tree_to_node_map());
     };
+    Testing.prototype.testTransactions001 = function () {
+        var cur = new UserManagementNode(undefined, 2, new BNode(undefined, 2));
+        var users = new Array();
+        for (var i = 0; i < 100; i++) {
+            users.push(cur.insert_child(i, "hi"));
+        }
+        cur.print_tree();
+        users[0].send_transaction({ writes: [0], reads: [0] }, [1]);
+    };
+    Testing.prototype.test_async = function () {
+        return __awaiter(this, void 0, void 0, function () {
+            var cur, i, i;
+            return __generator(this, function (_a) {
+                cur = new UserManagementNode(undefined, 10, new BNode(undefined, 10));
+                for (i = 0; i < 100; i++) {
+                    cur.insert_child(i, "hi");
+                }
+                for (i = 0; i < 100; i++) {
+                    cur.create_transaction({ writes: [i], reads: [i] });
+                }
+                return [2 /*return*/];
+            });
+        });
+    };
     return Testing;
 }());
 exports.Testing = Testing;
 var t = new Testing();
-t.allTests();
+t.testTransactions001();

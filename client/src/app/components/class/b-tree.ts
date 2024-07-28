@@ -12,14 +12,13 @@ export interface Node {
 }
 export interface Transaction{
   writes: any[],
-  reads: any[],
-  target: User[]
+  reads: any[]
 }
 
-export const MIN_BUBBLE_UP_WAIT_TIME:number = 500;   // How long(ms) does each node wait for more transactions before bubbleling up
-export const MIN_TRANSACTION_WAIT_TIME:number = 30; // How long(ms) does each node wait before sending the data to his parent (applies after bubble up wait time)
-export const MAX_BUBBLE_UP_WAIT_TIME:number = 500;   // How long(ms) does each node wait for more transactions before bubbleling up
-export const MAX_TRANSACTION_WAIT_TIME:number = 30; // How long(ms) does each node wait before sending the data to his parent (applies after bubble up wait time)
+export const MIN_BUBBLE_UP_WAIT_TIME:number = 0;   // How long(ms) does each node wait for more transactions before bubbleling up
+export const MIN_TRANSACTION_WAIT_TIME:number = 0; // How long(ms) does each node wait before sending the data to his parent (applies after bubble up wait time)
+export const MAX_BUBBLE_UP_WAIT_TIME:number = 0;   // How long(ms) does each node wait for more transactions before bubbleling up
+export const MAX_TRANSACTION_WAIT_TIME:number = 0; // How long(ms) does each node wait before sending the data to his parent (applies after bubble up wait time)
 
 
 type Key = number;
@@ -31,18 +30,20 @@ function process_transactions(transactions:Array<Transaction>){
   transactions.forEach((t) => {
     output.push(`transaction : w => ${t.reads.toString()}, r => ${t.writes.toString()}`);
   })
-  // console.log(output.toString());
+  console.log(output.toString());
 }
 
 export class User{
   private userID:Key;
   private data:Data;
   private curNode:UserManagementNode;
+  private searchNode:BNode<Nullable<User>>;
 
-  constructor(userID:Key, data:Data, curUserManagementNode:UserManagementNode){
+  constructor(userID:Key, data:Data, curUserManagementNode:UserManagementNode, searchNode:BNode<Nullable<User>>){
     this.userID = userID;
     this.data = data;
     this.curNode = curUserManagementNode;
+    this.searchNode = searchNode;
   }
 
   // Getters and setters
@@ -60,7 +61,18 @@ export class User{
   }
 
   // Transactions
-  send_transaction(transaction:Transaction){
+  async send_transaction(transaction:Transaction, targets:Key[]){
+    for (let target of targets){
+      let ret:Nullable<User> = this.searchNode.search(target)
+      if (typeof ret === "undefined"){
+        throw new Error("Catchable: Target " + target + "provided doesn't exist");
+      }
+      console.log("Sending transaction to " + target);
+      (ret as User).accept_transaction(transaction, this.userID);
+    }
+  }
+  async accept_transaction(transaction:Transaction, from:Key){
+    console.log("Received transaction from " + from)
     this.curNode.create_transaction(transaction, this.userID)
   }
 
@@ -94,7 +106,7 @@ export class UserManagementNode {
   private minNumberOfThresholds:number = -1;
 
   // Constructor
-  constructor(parent:Nullable<UserManagementNode>, maxNumberOfThresholds:number){ //, private transactionService: TransactionService
+  constructor(parent:Nullable<UserManagementNode>, maxNumberOfThresholds:number, private searchNode:BNode<Nullable<User>>){ //, private transactionService: TransactionService
     //Initialization
     if (maxNumberOfThresholds < 2){throw new Error("Disallowed initialization");}
 
@@ -106,16 +118,19 @@ export class UserManagementNode {
   // Transactions
   private my_lock = new Mutex();
   private all_cur_transactions:Array<Transaction> = []
-  async create_transaction(transaction:Transaction, userID:Key){
-    this._data_collection([transaction]);
+  async create_transaction(transaction:Transaction, userID?:Key){
+    this._data_collection([transaction], userID);
   }
   private async _data_collection(transactions:Array<Transaction>, userID?:Key):Promise<void>{
+    // Sending the signals
     if (typeof userID !== "undefined"){
       this.transaction_is_arriving(userID);
     }
     else{
       this.transaction_is_arriving(this.thresholds[0]);
     }
+
+    console.log("New data arrived at " + this.thresholds)
     await this.my_lock.acquire();
     try{
       let im_collecting = (this.all_cur_transactions.length === 0);
@@ -129,7 +144,10 @@ export class UserManagementNode {
     }
   }
   private async _bubble_up(){
+    // Send the signal
     this.transaction_is_leaving(this.thresholds[0]);
+    
+    console.log("Bubbling up at " + this.thresholds)
     await this.my_lock.acquire();
     try{
       if (typeof this.parent === "undefined"){
@@ -248,7 +266,8 @@ export class UserManagementNode {
   private _add_data_to_node(userID:Key, data:Data):User{
     //Assuming that the userID doesn't exist in the array
     //Add to arrays
-    let user = new User(userID, data, this)
+    let user = new User(userID, data, this, this.searchNode)
+    this.searchNode.insert_child(userID, user);
     if (this.thresholds.length == 0){
       this.thresholds.push(userID);
       this.datas.push(user);
@@ -283,7 +302,7 @@ export class UserManagementNode {
   private _split_node_wrapper_nr():void{
     //This handles the edge cases before asking parent to split this UserManagementNode
     if (typeof this.parent === "undefined"){
-      let tmpParent:UserManagementNode = new UserManagementNode(undefined, this.maxNumberOfThresholds); //, this.transactionService
+      let tmpParent:UserManagementNode = new UserManagementNode(undefined, this.maxNumberOfThresholds, this.searchNode); //, this.transactionService
       tmpParent.children.push(this);
       this.parent = tmpParent;
       return tmpParent._split_node_nr(this);
@@ -293,7 +312,7 @@ export class UserManagementNode {
   }
   private _split_node_nr(childUserManagementNode:UserManagementNode):void{
     //Assuming that childUserManagementNode.parent === this
-    let newUserManagementNode:UserManagementNode = new UserManagementNode(this, this.maxNumberOfThresholds); //, this.transactionService
+    let newUserManagementNode:UserManagementNode = new UserManagementNode(this, this.maxNumberOfThresholds, this.searchNode); //, this.transactionService
     let sizePartition1:number = Math.floor(childUserManagementNode.thresholds.length/2);
     let keyToPromote:Key = childUserManagementNode.thresholds[sizePartition1];
     let dataToPromote:User = childUserManagementNode.datas[sizePartition1];
@@ -369,6 +388,7 @@ export class UserManagementNode {
 
   // Deletion algorithm (returns a valid UserManagementNode)
   delete(userID:Key):UserManagementNode{
+    this.searchNode.insert_child(userID, undefined)
     return this._delete_up(userID);
   }
   private _delete_down(userID:Key):UserManagementNode{
@@ -909,11 +929,11 @@ export class UserManagementNode {
 }
 
 export class BNode<D> {
-  // D
+  // Data
   private parent:Nullable<BNode<D>>;
   private children:Array<BNode<D>> = [];
   private thresholds:Array<Key> = new Array<Key>();
-  private Ds:Array<D> = new Array<D>();
+  private datas:Array<D> = new Array<D>();
   private maxNumberOfThresholds:number = -1;
   private minNumberOfThresholds:number = -1;
   
@@ -929,14 +949,14 @@ export class BNode<D> {
 
 
   // Search algorithm (returns the D associated with the userID if it exists and undefined if the userID doesn't exist)
-  search(userID:Key):Nullable<BNode<D>>{
+  search(userID:Key):Nullable<D>{
     return this._search_up(userID);
   }
-  private _search_down(userID:Key):Nullable<BNode<D>>{
+  private _search_down(userID:Key):Nullable<D>{
     //Base case (leaf)
     if (this.children.length === 0){
       for (let index:number = 0; index < this.thresholds.length; index++){
-        if (userID === this.thresholds[index]){return this;}
+        if (userID === this.thresholds[index]){return this.datas[index];}
       }
       return undefined;
     }
@@ -948,12 +968,12 @@ export class BNode<D> {
         return this.children[index]._search_down(userID);
       }
       else if (userID === threshold){
-        return this;
+        return this.datas[index];
       }
     }
     return this.children[this.children.length-1]._search_down(userID)
   }
-  private _search_up(userID:Key):Nullable<BNode<D>>{
+  private _search_up(userID:Key):Nullable<D>{
     //Base case (root)
     if (typeof this.parent === "undefined"){
       return this._search_down(userID);
@@ -973,7 +993,7 @@ export class BNode<D> {
         return this.children[index]._search_down(userID);
       }
       else if (userID === threshold){
-        return this;
+        return this.datas[index];
       }
     }
     return this.parent._search_up(userID);
@@ -987,7 +1007,7 @@ export class BNode<D> {
   private _insert_child_down(userID:Key, D:D):BNode<D>{
     //Base case (leaf)
     if (this.children.length === 0){
-      return this._add_D_to_node(userID, D);
+      return this._add_data_to_node(userID, D);
     }
 
     //Iterate over the thresholds to find where the D is
@@ -997,7 +1017,8 @@ export class BNode<D> {
         return this.children[index]._insert_child_down(userID, D);
       }
       else if (userID === threshold){
-        throw new Error("Cannot add same user twice to the tree");
+        this.datas[index] = D;
+        return this;
       }
     }
     return this.children[this.children.length-1]._insert_child_down(userID, D)
@@ -1017,37 +1038,44 @@ export class BNode<D> {
           return this.parent._insert_child_up(userID, D);
         }
         if (this.children.length === 0){
-          return this._add_D_to_node(userID, D);
+          return this._add_data_to_node(userID, D);
         }
         return this.children[index]._insert_child_down(userID, D);
       }
       else if (userID === threshold){
-        throw new Error("Cannot add same user twice to the tree");
+        this.datas[index] = D;
+        return this;
       }
     }
     return this.parent._insert_child_up(userID, D);
   }
-  private _add_D_to_node(userID:Key, D:D):BNode<D>{
+  private _add_data_to_node(userID:Key, D:D):BNode<D>{
+    for (let i = 0; i < this.thresholds.length; i++){
+      if (userID === this.thresholds[i]){
+        this.datas[i] = D;
+        return this;
+      }
+    }
     //Assuming that the userID doesn't exist in the array
     //Add to arrays
     if (this.thresholds.length == 0){
       this.thresholds.push(userID);
-      this.Ds.push(D);
+      this.datas.push(D);
     }
     else if (userID < this.thresholds[0]){
       this.thresholds.unshift(userID);
-      this.Ds.unshift(D)
+      this.datas.unshift(D)
     }
     else if (userID > this.thresholds[this.thresholds.length - 1]){
       this.thresholds.push(userID);
-      this.Ds.push(D);
+      this.datas.push(D);
     }
     else{
       //Technically can change to bin search but not my problem
       for (let i = 0; i < this.thresholds.length - 1; i++){
         if (userID < this.thresholds[i+1] && userID > this.thresholds[i]){
           this.thresholds.splice(i+1, 0, userID);
-          this.Ds.splice(i+1, 0, D);
+          this.datas.splice(i+1, 0, D);
         }
       }
     }
@@ -1077,17 +1105,17 @@ export class BNode<D> {
     let newBNode:BNode<D> = new BNode<D>(this, this.maxNumberOfThresholds); //, this.transactionService
     let sizePartition1:number = Math.floor(childBNode.thresholds.length/2);
     let keyToPromote:Key = childBNode.thresholds[sizePartition1];
-    let DToPromote:D = childBNode.Ds[sizePartition1];
+    let DToPromote:D = childBNode.datas[sizePartition1];
 
     //Spliting the BNode into three, the original childBNode pointer, the new newBNode pointer and the new promoted D
-    newBNode.Ds = childBNode.Ds.slice(0, sizePartition1);
+    newBNode.datas = childBNode.datas.slice(0, sizePartition1);
     newBNode.thresholds = childBNode.thresholds.slice(0, sizePartition1);
     newBNode.children = childBNode.children.slice(0, sizePartition1 + 1);
     for (let child of newBNode.children){
       child.parent = newBNode;
     }
 
-    childBNode.Ds = childBNode.Ds.slice(sizePartition1 + 1);
+    childBNode.datas = childBNode.datas.slice(sizePartition1 + 1);
     childBNode.thresholds = childBNode.thresholds.slice(sizePartition1 + 1);
     childBNode.children = childBNode.children.slice(sizePartition1 + 1);
 
@@ -1103,7 +1131,7 @@ export class BNode<D> {
 
       this.children.unshift(newBNode);
       this.thresholds.unshift(keyToPromote);
-      this.Ds.unshift(DToPromote);
+      this.datas.unshift(DToPromote);
     }
     //Finding the spot to add it
     else {
@@ -1113,12 +1141,12 @@ export class BNode<D> {
         }
         this.children.unshift(newBNode);
         this.thresholds.unshift(keyToPromote);
-        this.Ds.unshift(DToPromote);
+        this.datas.unshift(DToPromote);
       }
       else if (keyToPromote > this.thresholds[this.thresholds.length - 1]){
         this.children.splice(this.children.length - 1, 0, newBNode);
         this.thresholds.push(keyToPromote);
-        this.Ds.push(DToPromote);
+        this.datas.push(DToPromote);
       }
       else if (keyToPromote === this.thresholds[this.thresholds.length - 1]){
         throw new Error("Promoted BNode already exists in his parent's Dset. Node D:\'" + this.thresholds + "\', keyToPromote:" + keyToPromote);
@@ -1128,7 +1156,7 @@ export class BNode<D> {
           if (keyToPromote > this.thresholds[i] && keyToPromote < this.thresholds[i+1]){
             this.children.splice(i+1, 0, newBNode);
             this.thresholds.splice(i+1, 0, keyToPromote);
-            this.Ds.splice(i+1, 0, DToPromote);
+            this.datas.splice(i+1, 0, DToPromote);
             break;
           }
           else if (keyToPromote == this.thresholds[i]){
@@ -1182,17 +1210,17 @@ export class BNode<D> {
     let newBNode:BNode<D> = new BNode<D>(this, this.maxNumberOfThresholds); //, this.transactionService
     let sizePartition1:number = Math.floor(childBNode.thresholds.length/2);
     let keyToPromote:Key = childBNode.thresholds[sizePartition1];
-    let DToPromote:D = childBNode.Ds[sizePartition1];
+    let DToPromote:D = childBNode.datas[sizePartition1];
 
     //Spliting the BNode into three, the original childBNode pointer, the new newBNode pointer and the new promoted D
-    newBNode.Ds = childBNode.Ds.slice(0, sizePartition1);
+    newBNode.datas = childBNode.datas.slice(0, sizePartition1);
     newBNode.thresholds = childBNode.thresholds.slice(0, sizePartition1);
     newBNode.children = childBNode.children.slice(0, sizePartition1 + 1);
     for (let child of newBNode.children){
       child.parent = newBNode;
     }
 
-    childBNode.Ds = childBNode.Ds.slice(sizePartition1 + 1);
+    childBNode.datas = childBNode.datas.slice(sizePartition1 + 1);
     childBNode.thresholds = childBNode.thresholds.slice(sizePartition1 + 1);
     childBNode.children = childBNode.children.slice(sizePartition1 + 1);
 
@@ -1208,7 +1236,7 @@ export class BNode<D> {
 
       this.children.unshift(newBNode);
       this.thresholds.unshift(keyToPromote);
-      this.Ds.unshift(DToPromote);
+      this.datas.unshift(DToPromote);
     }
     //Finding the spot to add it
     else {
@@ -1218,12 +1246,12 @@ export class BNode<D> {
       }
       this.children.unshift(newBNode);
       this.thresholds.unshift(keyToPromote);
-      this.Ds.unshift(DToPromote);
+      this.datas.unshift(DToPromote);
       }
       else if (keyToPromote > this.thresholds[this.thresholds.length - 1]){
         this.children.splice(this.children.length - 1, 0, newBNode);
         this.thresholds.push(keyToPromote);
-        this.Ds.push(DToPromote);
+        this.datas.push(DToPromote);
       }
       else if (keyToPromote === this.thresholds[this.thresholds.length - 1]){
         throw new Error("Promoted BNode already exists in his parent's Dset. Node D:\'" + this.thresholds + "\', keyToPromote:" + keyToPromote);
@@ -1233,7 +1261,7 @@ export class BNode<D> {
           if (keyToPromote > this.thresholds[i] && keyToPromote < this.thresholds[i+1]){
             this.children.splice(i+1, 0, newBNode);
             this.thresholds.splice(i+1, 0, keyToPromote);
-            this.Ds.splice(i+1, 0, DToPromote);
+            this.datas.splice(i+1, 0, DToPromote);
             break;
           }
           else if (keyToPromote == this.thresholds[i]){
@@ -1311,10 +1339,10 @@ export class BNode<D> {
     return this._internal_handler(index)
   }
   private _leaf_handler(index:number):BNode<D>{
-    this.Ds.splice(index, 1);
+    this.datas.splice(index, 1);
     this.thresholds.splice(index, 1);
 
-    if (this.Ds.length < this.minNumberOfThresholds){
+    if (this.datas.length < this.minNumberOfThresholds){
       if (typeof this.parent == "undefined"){
         return this;
       }
@@ -1332,12 +1360,12 @@ export class BNode<D> {
     if (typeof childToDeleteFrom !== "undefined"){
       let indexToRem:number = childToDeleteFrom.thresholds.length - 1;
       let thresholdToRem:Key = childToDeleteFrom.thresholds[indexToRem];
-      let DToRem:D = childToDeleteFrom.Ds[indexToRem];
+      let DToRem:D = childToDeleteFrom.datas[indexToRem];
 
       childToDeleteFrom._delete_wrapper(indexToRem);
 
       this.thresholds[index] = thresholdToRem;
-      this.Ds[index] = DToRem;
+      this.datas[index] = DToRem;
       
       return this._should_balance_tree()
     }
@@ -1346,12 +1374,12 @@ export class BNode<D> {
     childToDeleteFrom = this._can_promote_right(rightChild)
     if (typeof childToDeleteFrom !== "undefined"){
       let thresholdToRem:Key = childToDeleteFrom.thresholds[0];
-      let DToRem:D = childToDeleteFrom.Ds[0];
+      let DToRem:D = childToDeleteFrom.datas[0];
 
       childToDeleteFrom._delete_wrapper(0);
 
       this.thresholds[index] = thresholdToRem;
-      this.Ds[index] = DToRem;
+      this.datas[index] = DToRem;
       
       return this._should_balance_tree()
     }
@@ -1359,7 +1387,7 @@ export class BNode<D> {
     //Case 2.a: Compression
     if (leftChild.thresholds.length + rightChild.thresholds.length <= this.maxNumberOfThresholds){
       this.children.splice(index + 1, 1);
-      this.Ds.splice(index, 1);
+      this.datas.splice(index, 1);
       this.thresholds.splice(index, 1);
 
       this._naive_merge(leftChild, rightChild);
@@ -1405,7 +1433,7 @@ export class BNode<D> {
     return undefined;
   }
   private _should_balance_tree(){
-    if (this.Ds.length < this.minNumberOfThresholds){
+    if (this.datas.length < this.minNumberOfThresholds){
       if (typeof this.parent == "undefined"){
         return this;
       }
@@ -1415,14 +1443,14 @@ export class BNode<D> {
   }
   private _naive_merge(BNode1:BNode<D>, BNode2:BNode<D>){
     if (BNode1.children.length === 0){
-      BNode1.Ds.push(...BNode2.Ds)
+      BNode1.datas.push(...BNode2.datas)
       BNode1.thresholds.push(...BNode2.thresholds)
       return;
     }
     let left = BNode1.children[BNode1.children.length - 1];
     let right = BNode2.children.shift() as BNode<D>
 
-    BNode1.Ds.push(...BNode2.Ds)
+    BNode1.datas.push(...BNode2.datas)
     BNode1.thresholds.push(...BNode2.thresholds)
     BNode1.children.push(...BNode2.children);
 
@@ -1484,7 +1512,7 @@ export class BNode<D> {
     let iter = this.thresholds.length;
     for (let i = iter; i >= 0; i--){
       this.thresholds.splice(i, 0, ...this.children[i].thresholds);
-      this.Ds.splice(i, 0, ...this.children[i].Ds);
+      this.datas.splice(i, 0, ...this.children[i].datas);
     }
 
     let tmpChildren:Array<BNode<D>> = this.children;
@@ -1509,9 +1537,9 @@ export class BNode<D> {
         let tmpIndex = child.thresholds.length - 1;
 
         let tmpKey = child.thresholds[tmpIndex];
-        let tmpD = child.Ds[tmpIndex];
+        let tmpD = child.datas[tmpIndex];
         child.thresholds.pop();
-        child.Ds.pop();
+        child.datas.pop();
 
         if (child.children.length !== 0){
           let tmpChild = child.children[tmpIndex + 1];
@@ -1521,12 +1549,12 @@ export class BNode<D> {
         }
 
         let tmpKey1 = this.thresholds[index - 1];
-        let tmpD1 = this.Ds[index - 1];
+        let tmpD1 = this.datas[index - 1];
         this.thresholds[index - 1] = tmpKey;
-        this.Ds[index - 1] = tmpD;
+        this.datas[index - 1] = tmpD;
 
         child2.thresholds.unshift(tmpKey1);
-        child2.Ds.unshift(tmpD1);
+        child2.datas.unshift(tmpD1);
         return this;
       }
     }
@@ -1538,9 +1566,9 @@ export class BNode<D> {
       let child2 = this.children[index];
       if (child.thresholds.length > this.minNumberOfThresholds){
         let tmpKey = child.thresholds[0];
-        let tmpD = child.Ds[0];
+        let tmpD = child.datas[0];
         child.thresholds.shift();
-        child.Ds.shift();
+        child.datas.shift();
 
         if (child.children.length !== 0){
           let tmpChild = child.children[0]
@@ -1550,12 +1578,12 @@ export class BNode<D> {
         }
 
         let tmpKey1 = this.thresholds[index];
-        let tmpD1 = this.Ds[index];
+        let tmpD1 = this.datas[index];
         this.thresholds[index] = tmpKey;
-        this.Ds[index] = tmpD;
+        this.datas[index] = tmpD;
 
         child2.thresholds.push(tmpKey1);
-        child2.Ds.push(tmpD1);
+        child2.datas.push(tmpD1);
         return this;
       }
     }
@@ -1567,10 +1595,10 @@ export class BNode<D> {
         let child = this.children[index - 1];
         let child2 = this.children.splice(index, 1)[0];
         let tmpKey = this.thresholds.splice(index-1, 1)[0];
-        let tmpD = this.Ds.splice(index-1, 1)[0];
+        let tmpD = this.datas.splice(index-1, 1)[0];
 
         child.thresholds.push(tmpKey, ...child2.thresholds);
-        child.Ds.push(tmpD, ...child2.Ds);
+        child.datas.push(tmpD, ...child2.datas);
         child.children.push(...child2.children);
 
         for (let tmpChild of child.children){
@@ -1592,10 +1620,10 @@ export class BNode<D> {
         let child = this.children[index];
         let child2 = this.children.splice(index+1, 1)[0];
         let tmpKey = this.thresholds.splice(index, 1)[0];
-        let tmpD = this.Ds.splice(index, 1)[0];
+        let tmpD = this.datas.splice(index, 1)[0];
 
         child.thresholds.push(tmpKey, ...child2.thresholds);
-        child.Ds.push(tmpD, ...child2.Ds);
+        child.datas.push(tmpD, ...child2.datas);
         child.children.push(...child2.children);
 
         for (let tmpChild of child.children){
@@ -1618,10 +1646,10 @@ export class BNode<D> {
   }
   private _validate_self(minNumb:number, maxNumb:number):void{
     //Validate lengths
-    if (this.Ds.length !== this.thresholds.length) {throw new Error("Ds and Threshold lengths are inconsistent");}
-    if (this.children.length !== 0 && this.Ds.length !== (this.children.length - 1)) {throw new Error("Children lengths are inconsistent");}
-    if (typeof this.parent !== "undefined" && this.Ds.length < this.minNumberOfThresholds) {throw new Error("Tree has nodes with less than the minimum amount of nodes ");}
-    if (this.Ds.length > this.maxNumberOfThresholds) {throw new Error("Tree has nodes with more than the maximum amount of nodes ");}
+    if (this.datas.length !== this.thresholds.length) {throw new Error("datas and Threshold lengths are inconsistent");}
+    if (this.children.length !== 0 && this.datas.length !== (this.children.length - 1)) {throw new Error("Children lengths are inconsistent");}
+    if (typeof this.parent !== "undefined" && this.datas.length < this.minNumberOfThresholds) {throw new Error("Tree has nodes with less than the minimum amount of nodes ");}
+    if (this.datas.length > this.maxNumberOfThresholds) {throw new Error("Tree has nodes with more than the maximum amount of nodes ");}
     
     //Validate ordering
     for (let i:number = 0; i < this.thresholds.length - 1; i++){
@@ -1717,13 +1745,14 @@ export class Testing{
     this.deleteTest001();
     this.deleteTest002();
     this.deleteTest003();
-    // this.deleteTest004();
+    this.deleteTest004();
     this.deleteTest005();
+    this.deleteTest006();
     console.log("Works");
   }
 
   insertionTest001(){
-    let cur:UserManagementNode = new UserManagementNode(undefined, 5);
+    let cur:UserManagementNode = new UserManagementNode(undefined, 5, new BNode<User>(undefined, 10));
 
     for (let j = 0; j < 5; j++){
       for (let i = j; i <= 100; i += 5){
@@ -1734,7 +1763,7 @@ export class Testing{
     cur.validate_tree();
   }
   insertionTest002(){
-    let cur:UserManagementNode = new UserManagementNode(undefined, 5);
+    let cur:UserManagementNode = new UserManagementNode(undefined, 5, new BNode<User>(undefined, 10));
 
     for (let i = 0; i <= 100; i ++){
       if(!cur.insert_child(i ,"hi").compare_id(i)){throw new Error("Pain lol")};
@@ -1743,7 +1772,7 @@ export class Testing{
     cur.validate_tree();
   }
   insertionTest003(){
-    let cur:UserManagementNode = new UserManagementNode(undefined, 6);
+    let cur:UserManagementNode = new UserManagementNode(undefined, 6, new BNode<User>(undefined, 10));
 
     for (let i = 100; i >= 0; i --){
       if(!cur.insert_child(i ,"hi").compare_id(i)){throw new Error("Pain lol")};
@@ -1752,7 +1781,7 @@ export class Testing{
     cur.validate_tree();
   }
   insertionTest004(){
-    let cur:UserManagementNode = new UserManagementNode(undefined, 5);
+    let cur:UserManagementNode = new UserManagementNode(undefined, 5, new BNode<User>(undefined, 10));
 
     for (let i = 0; i <= 100; i ++){
       if(!cur.insert_child(i ,"hi").compare_id(i)){throw new Error("Pain lol")};
@@ -1763,7 +1792,7 @@ export class Testing{
   }
 
   searchTest001(){
-    let cur:UserManagementNode = new UserManagementNode(undefined, 5);
+    let cur:UserManagementNode = new UserManagementNode(undefined, 5, new BNode<User>(undefined, 10));
 
     for (let i = 0; i <= 100; i += 5){
       cur.insert_child(i ,"hi");
@@ -1794,7 +1823,7 @@ export class Testing{
   }
 
   deleteTest001(){
-    let cur:UserManagementNode = new UserManagementNode(undefined, 5);
+    let cur:UserManagementNode = new UserManagementNode(undefined, 5, new BNode<User>(undefined, 10));
 
     for (let i = 0; i <= 1000; i ++){
       cur.insert_child(i ,"hi");
@@ -1810,7 +1839,7 @@ export class Testing{
     }
   }
   deleteTest002(){
-    let cur:UserManagementNode = new UserManagementNode(undefined, 5);
+    let cur:UserManagementNode = new UserManagementNode(undefined, 5, new BNode<User>(undefined, 10));
     let leap = 5;
     let max = 1000;
     for (let j = 0; j < leap; j++){
@@ -1830,7 +1859,7 @@ export class Testing{
     }
   }
   deleteTest003(){
-    let cur:UserManagementNode = new UserManagementNode(undefined, 5);
+    let cur:UserManagementNode = new UserManagementNode(undefined, 5, new BNode<User>(undefined, 10));
     let leap = 5;
     let max = 1000;
     for (let j = 0; j < leap; j++){
@@ -1863,7 +1892,7 @@ export class Testing{
   }
   deleteTest004(){
     let set:Array<Key> = [];
-    let cur:UserManagementNode = new UserManagementNode(undefined, 6);
+    let cur:UserManagementNode = new UserManagementNode(undefined, 6, new BNode<User>(undefined, 10));
 
     function add_random_node(){
       let random_number = Math.floor(Math.random() * 100000);
@@ -1890,7 +1919,7 @@ export class Testing{
       }
       else if (set.length > 1000){
         empty_all = true;
-        console.log("Emptying");
+        console.log("Test4: Emptying");
       }
       else if (set.length < 2){
         add_random_node()
@@ -1909,7 +1938,7 @@ export class Testing{
   deleteTest005(){
     let set:Array<Key> = [];
     let user_set:Map<Key, User> = new Map();
-    let cur:UserManagementNode = new UserManagementNode(undefined, 6);
+    let cur:UserManagementNode = new UserManagementNode(undefined, 6, new BNode<User>(undefined, 10));
     
     function add_random_node(){
       let random_number = Math.floor(Math.random() * 100000);
@@ -1950,7 +1979,7 @@ export class Testing{
       }
       else if (set.length > 1000){
         empty_all = true;
-        console.log("Emptying");
+        console.log("Test5: Emptying");
       }
       else if (set.length < 2){
         add_random_node()
@@ -1967,9 +1996,54 @@ export class Testing{
       cur.validate_tree()
     }
   }
+  deleteTest006(){
+    let set:Array<Key> = [];
+    let cur:BNode<String> = new BNode(undefined, 10);
+
+    function add_random_node(){
+      let random_number = Math.floor(Math.random() * 100000);
+      while (set.includes(random_number)){
+        random_number = Math.floor(Math.random() * 100000);
+      }
+      cur.insert_child(random_number, "hi");
+      set.push(random_number);
+    }
+    function remove_random_node(){
+      let random_index:number = Math.floor(Math.random() * set.length);
+      cur = cur.delete(set[random_index]);
+      set.splice(random_index,1);
+    }
+
+    let empty_all = false
+    for(let i = 0; i < 200000; i++){
+      if (set.length === 0){
+        empty_all = false;
+      }
+
+      if (empty_all === true){
+        remove_random_node()
+      }
+      else if (set.length > 1000){
+        empty_all = true;
+        console.log("Test6: Emptying");
+      }
+      else if (set.length < 2){
+        add_random_node()
+      }
+      else{
+        if (Math.random() < 0.55){
+          add_random_node()
+        }
+        else{
+          remove_random_node()
+        }
+      }
+      cur.validate_tree()
+    }
+  }
 
   test_UserManagementNode_tree_to_node_map(){
-    let cur:UserManagementNode = new UserManagementNode(undefined, 5);
+    let cur:UserManagementNode = new UserManagementNode(undefined, 5, new BNode<User>(undefined, 10));
   
     for (let i = 0; i <= 100; i ++){
       cur.insert_child(i ,"hi");
@@ -1980,14 +2054,28 @@ export class Testing{
     console.log(cur.UserManagementNode_tree_to_node_map());
   }
   
-  // async test_async(){
-  //   let cur:UserManagementNode<number> = new UserManagementNode(undefined, 4);
-  //   for (let i = 0; i < 100; i++){
-  //     cur.create_transaction({writes:[i], reads:[i]});
-  //   }
-  // }
+  testTransactions001(){
+    let cur:UserManagementNode = new UserManagementNode(undefined, 2, new BNode<User>(undefined, 2));
+
+    let users:User[] = new Array<User>();
+    for (let i = 0; i < 100; i++){
+      users.push(cur.insert_child(i, "hi"))
+    }
+    cur.print_tree()
+    users[0].send_transaction({writes:[0],reads:[0]}, [1])
+
+  }
+  async test_async(){
+    let cur:UserManagementNode = new UserManagementNode(undefined, 10, new BNode<User>(undefined, 10));
+    for (let i = 0; i < 100; i++){
+      cur.insert_child(i, "hi")
+    }
+    for (let i = 0; i < 100; i++){
+      cur.create_transaction({writes:[i], reads:[i]});
+    }
+  }
 }
 
 
 let t = new Testing();
-t.allTests();
+t.testTransactions001();
