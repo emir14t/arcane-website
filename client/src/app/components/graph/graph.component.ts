@@ -8,7 +8,7 @@ import opacity from 'hex-color-opacity';
 
 // our own code import
 import { Node, ChartContainer, Transaction } from 'src/app/interface/interface';
-import { BNode } from '../class/b-tree';
+import { BNode } from '../class/user_btree';
 import { INITIAL_NODE_ID, MAX_DEGREE, NUMBER_OF_INITIAL_NODE, PROBABILITY_OF_ADDING_USER } from 'src/app/constants';
 import { TransactionService } from 'src/app/services/transaction.service';
 import { Subscription } from 'rxjs';
