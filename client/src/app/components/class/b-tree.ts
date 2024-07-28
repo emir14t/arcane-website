@@ -61,18 +61,17 @@ export class User{
   }
 
   // Transactions
-  async send_transaction(transaction:Transaction, targets:Key[]){
+  send_transaction(transaction:Transaction, targets:Key[]){
     for (let target of targets){
       let ret:Nullable<User> = this.searchNode.search(target)
       if (typeof ret === "undefined"){
-        throw new Error("Catchable: Target " + target + "provided doesn't exist");
+        throw new Error("Catchable: Target " + target + " provided doesn't exist");
       }
-      console.log("Sending transaction to " + target);
       (ret as User).accept_transaction(transaction, this.userID);
     }
   }
   async accept_transaction(transaction:Transaction, from:Key){
-    console.log("Received transaction from " + from)
+    // console.log("Received transaction from " + from)
     this.curNode.create_transaction(transaction, this.userID)
   }
 
@@ -130,7 +129,7 @@ export class UserManagementNode {
       this.transaction_is_arriving(this.thresholds[0]);
     }
 
-    console.log("New data arrived at " + this.thresholds)
+    // console.log("New data arrived at " + this.thresholds)
     await this.my_lock.acquire();
     try{
       let im_collecting = (this.all_cur_transactions.length === 0);
@@ -146,15 +145,15 @@ export class UserManagementNode {
   private async _bubble_up(){
     // Send the signal
     this.transaction_is_leaving(this.thresholds[0]);
-    
-    console.log("Bubbling up at " + this.thresholds)
+
+    // console.log("Bubbling up at " + this.thresholds)
     await this.my_lock.acquire();
     try{
       if (typeof this.parent === "undefined"){
         setTimeout(process_transactions.bind(this), Math.random() * (MAX_TRANSACTION_WAIT_TIME-MIN_TRANSACTION_WAIT_TIME) + MIN_TRANSACTION_WAIT_TIME, this.all_cur_transactions);
       }
       else{
-        setTimeout((this.parent as UserManagementNode)._data_collection.bind(this), Math.random() * (MAX_TRANSACTION_WAIT_TIME-MIN_TRANSACTION_WAIT_TIME) + MIN_TRANSACTION_WAIT_TIME, this.all_cur_transactions);
+        setTimeout((this.parent as UserManagementNode)._data_collection.bind(this.parent as UserManagementNode), Math.random() * (MAX_TRANSACTION_WAIT_TIME-MIN_TRANSACTION_WAIT_TIME) + MIN_TRANSACTION_WAIT_TIME, this.all_cur_transactions);
       }
 
       this.all_cur_transactions = []; 
@@ -2055,16 +2054,40 @@ export class Testing{
   }
   
   testTransactions001(){
-    let cur:UserManagementNode = new UserManagementNode(undefined, 2, new BNode<User>(undefined, 2));
+    let searchNode:BNode<Nullable<User>> = new BNode<Nullable<User>>(undefined, 2)
+    let cur:UserManagementNode = new UserManagementNode(undefined, 2, searchNode);
 
     let users:User[] = new Array<User>();
     for (let i = 0; i < 100; i++){
       users.push(cur.insert_child(i, "hi"))
     }
-    cur.print_tree()
-    users[0].send_transaction({writes:[0],reads:[0]}, [1])
 
+    for (let i = 0; i < 100; i++){
+      for (let j = 0; j < 100; j++){
+        users[i].send_transaction({writes:[i],reads:[j]}, [j])
+      }
+    }
+
+    users[99].delete_self()
+    if (typeof cur.search(99) !== "undefined"){
+      throw new Error()
+    }
+
+    let non_error = 0;
+    for (let i = 0; i < 99; i++){
+      try{
+        users[i].send_transaction({writes:[0],reads:[0]}, [99])
+      }
+      catch(e){
+        non_error++;
+        continue;
+      }
+    }
+    if (non_error !== 99){
+      throw new Error("Can send transactions to offline people " + non_error)
+    }
   }
+  
   async test_async(){
     let cur:UserManagementNode = new UserManagementNode(undefined, 10, new BNode<User>(undefined, 10));
     for (let i = 0; i < 100; i++){

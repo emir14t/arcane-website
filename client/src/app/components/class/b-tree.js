@@ -81,26 +81,19 @@ var User = /** @class */ (function () {
     };
     // Transactions
     User.prototype.send_transaction = function (transaction, targets) {
-        return __awaiter(this, void 0, void 0, function () {
-            var _i, targets_1, target, ret;
-            return __generator(this, function (_a) {
-                for (_i = 0, targets_1 = targets; _i < targets_1.length; _i++) {
-                    target = targets_1[_i];
-                    ret = this.searchNode.search(target);
-                    if (typeof ret === "undefined") {
-                        throw new Error("Catchable: Target " + target + "provided doesn't exist");
-                    }
-                    console.log("Sending transaction to " + target);
-                    ret.accept_transaction(transaction, this.userID);
-                }
-                return [2 /*return*/];
-            });
-        });
+        for (var _i = 0, targets_1 = targets; _i < targets_1.length; _i++) {
+            var target = targets_1[_i];
+            var ret = this.searchNode.search(target);
+            if (typeof ret === "undefined") {
+                throw new Error("Catchable: Target " + target + " provided doesn't exist");
+            }
+            ret.accept_transaction(transaction, this.userID);
+        }
     };
     User.prototype.accept_transaction = function (transaction, from) {
         return __awaiter(this, void 0, void 0, function () {
             return __generator(this, function (_a) {
-                console.log("Received transaction from " + from);
+                // console.log("Received transaction from " + from)
                 this.curNode.create_transaction(transaction, this.userID);
                 return [2 /*return*/];
             });
@@ -161,17 +154,18 @@ var UserManagementNode = /** @class */ (function () {
             return __generator(this, function (_b) {
                 switch (_b.label) {
                     case 0:
+                        // Sending the signals
                         if (typeof userID !== "undefined") {
                             this.transaction_is_arriving(userID);
                         }
                         else {
                             this.transaction_is_arriving(this.thresholds[0]);
                         }
-                        console.log("New data arrived at " + this.thresholds[0]);
+                        // console.log("New data arrived at " + this.thresholds)
                         return [4 /*yield*/, this.my_lock.acquire()];
                     case 1:
+                        // console.log("New data arrived at " + this.thresholds)
                         _b.sent();
-                        // console.log("Data collection lock aquired")
                         try {
                             im_collecting = (this.all_cur_transactions.length === 0);
                             (_a = this.all_cur_transactions).push.apply(_a, transactions);
@@ -192,18 +186,19 @@ var UserManagementNode = /** @class */ (function () {
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
+                        // Send the signal
                         this.transaction_is_leaving(this.thresholds[0]);
-                        console.log("Bubbling up at " + this.thresholds[0]);
+                        // console.log("Bubbling up at " + this.thresholds)
                         return [4 /*yield*/, this.my_lock.acquire()];
                     case 1:
+                        // console.log("Bubbling up at " + this.thresholds)
                         _a.sent();
-                        // console.log("Bubbling up lock aquired")
                         try {
                             if (typeof this.parent === "undefined") {
                                 setTimeout(process_transactions.bind(this), Math.random() * (exports.MAX_TRANSACTION_WAIT_TIME - exports.MIN_TRANSACTION_WAIT_TIME) + exports.MIN_TRANSACTION_WAIT_TIME, this.all_cur_transactions);
                             }
                             else {
-                                setTimeout(this.parent._data_collection.bind(this), Math.random() * (exports.MAX_TRANSACTION_WAIT_TIME - exports.MIN_TRANSACTION_WAIT_TIME) + exports.MIN_TRANSACTION_WAIT_TIME, this.all_cur_transactions);
+                                setTimeout(this.parent._data_collection.bind(this.parent), Math.random() * (exports.MAX_TRANSACTION_WAIT_TIME - exports.MIN_TRANSACTION_WAIT_TIME) + exports.MIN_TRANSACTION_WAIT_TIME, this.all_cur_transactions);
                             }
                             this.all_cur_transactions = [];
                         }
@@ -2015,13 +2010,34 @@ var Testing = /** @class */ (function () {
         console.log(cur.UserManagementNode_tree_to_node_map());
     };
     Testing.prototype.testTransactions001 = function () {
-        var cur = new UserManagementNode(undefined, 2, new BNode(undefined, 2));
+        var searchNode = new BNode(undefined, 2);
+        var cur = new UserManagementNode(undefined, 2, searchNode);
         var users = new Array();
         for (var i = 0; i < 100; i++) {
             users.push(cur.insert_child(i, "hi"));
         }
-        cur.print_tree();
-        users[0].send_transaction({ writes: [0], reads: [0] }, [1]);
+        for (var i = 0; i < 100; i++) {
+            for (var j = 0; j < 100; j++) {
+                users[i].send_transaction({ writes: [i], reads: [j] }, [j]);
+            }
+        }
+        users[99].delete_self();
+        if (typeof cur.search(99) !== "undefined") {
+            throw new Error();
+        }
+        var non_error = 0;
+        for (var i = 0; i < 99; i++) {
+            try {
+                users[i].send_transaction({ writes: [0], reads: [0] }, [99]);
+            }
+            catch (e) {
+                non_error++;
+                continue;
+            }
+        }
+        if (non_error !== 99) {
+            throw new Error("Can send transactions to offline people " + non_error);
+        }
     };
     Testing.prototype.test_async = function () {
         return __awaiter(this, void 0, void 0, function () {
