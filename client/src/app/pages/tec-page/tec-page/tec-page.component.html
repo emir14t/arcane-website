@@ -1,10 +1,62 @@
 <div class="container">
-    <div class="text">
-        <h2>Methex technologie</h2>
-        <h3>Watch an AI simulation of the Methex network architecture !</h3>    
-    </div>
+    <h1>Revolutionizing Network Architecture With Methex Technology</h1>
+    <img src="assets/network-picture.png" alt="network">
+    <!-- <h2>Watch an AI simulation of the Methex network architecture !</h2> -->
+    <h2>An Hybrid P2P Systems with Cryptographic Proof for Ultimate Trust and Efficiency</h2>
+    
+    <h3>Target Overview</h3>
+    <p>At Methex, we are pioneering a revolutionary approach to cloud infrastructure with a new high-level architecture designed for building intelligent software. Our goal is to enable your applications to inherit the following essential properties:</p>
+    <ul>
+        <li>Redundancy of Data</li>
+        <li>Always Available</li>
+        <li>Stable Cost</li>
+        <li>Cost Efficient</li>
+        <li>Energy Efficient</li>
+        <li>Organically Scalable</li>
+    </ul>
+    <p>Applications using Methex require minimal maintenance, are independent of classical cloud infrastructure, and are intelligent enough to scale themselves.</p>
+
+    <h3>How It Works</h3>
+    <h4>Leveraging User Computing Power</h4>
+    <p>Every time a user connects, they contribute not only consumption but also computing power. Our architecture leverages a P2P system to utilize users' computing power to sustain the network. To ensure trust and security, we employ cryptographic proof for data encryption and communication.</p>
+
+    <h3>Network Structure</h3>
+    <h4>Tree Graph Structure</h4>
+    <p>The network consists of users organized into branches of a tree graph. The first 63,000 users are connected directly to the server, forming the root of the tree graph. New users are assigned to a branch and inserted into the tree graph, allowing the app to balance itself dynamically. Each node in the connection graph is composed of 3 to 6 users connected via WebSockets.</p>
+    <h2>graph of server connection there</h2>
+    <p><em>Graph 1: Server and the first 63,000 users connected</em></p>
+
+    <h4>Branch Structure</h4>
+    <p>Each branch of the tree consists of nodes where groups of users work together to ensure redundancy and balance.</p>
     <div class="graph-container">
         <app-graph></app-graph>
         <app-chart></app-chart>
     </div>
+    <p><em>Graph 2: A branch with nodes composed of user groups ensuring redundancy</em></p>
+
+    <h3>Memory Model</h3>
+    <p>Our memory model uses a B+-tree structure to create a multi-level virtual memory system:</p>
+    <ul>
+        <li>Users can contact each other to get pointers to other users.</li>
+        <li>The tree uses public addresses as keys and IPs as values.</li>
+        <li>Depth of the tree depends on the number of tables, balancing latency and memory consumption.</li>
+        <li>Users have a cache for frequently used addresses and IPs, using predictive algorithms to prefetch data.</li>
+        <li>A redundancy protocol ensures data consistency and redundancy within each node.</li>
+    </ul>
+    <h2>memory model graph there</h2>
+    <p><em>Graph 3: Memory tables with B+-tree structure</em></p>
+
+    <h3>Transaction Process</h3>
+    <p>Transactions in our network are secure and efficient, thanks to our cryptographic proof system:</p>
+    <ul>
+        <li>A user fetches another user or multiple users, connects, and generates a proof of authorization.</li>
+        <li>The user sends a request and proof to the users possessing the required data.</li>
+        <li>The receiving users verify the proof, perform the requested operation, and send back the updated proof and data.</li>
+        <li>The transaction completes once all users update their memory and close the connection.</li>
+    </ul>
+    <p>Everything operates based on relative addresses from the memory model, ensuring smooth and secure transactions.</p>
+
+    <h3>Summary</h3>
+    <p>Our innovative architecture at Methex promises to revolutionize cloud infrastructure by creating intelligent, self-scaling applications. Through a combination of P2P systems, cryptographic proofs, and structured network models, we deliver a solution that is efficient, secure, and cost-effective.</p>
+    <p>For more information and to see our technology in action, explore the real-time simulation graph above.</p>
 </div>
