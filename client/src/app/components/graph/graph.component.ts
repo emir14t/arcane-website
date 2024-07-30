@@ -8,10 +8,11 @@ import opacity from 'hex-color-opacity';
 
 // our own code import
 import { Node, ChartContainer, Transaction } from 'src/app/interface/interface';
-import { BNode } from '../class/user_btree';
-import { INITIAL_NODE_ID, MAX_DEGREE, NUMBER_OF_INITIAL_NODE, PROBABILITY_OF_ADDING_USER } from 'src/app/constants';
+import { User, UserManagementNode } from '../class/user_btree';
+import { INITIAL_NODE_ID, MAX_DEGREE, INITIAL_NODE_NUMBER, PROBABILITY_OF_ADDING_USER, ACTIONS_NUMBERS, TX_ACTION_NUMBERS , DELETE_ACTION_NUMBERS} from 'src/app/constants';
 import { TransactionService } from 'src/app/services/transaction.service';
 import { Subscription } from 'rxjs';
+import { BNode } from '../class/btree';
 
 Chart.register(...registerables, TreeController, TreeChart, EdgeLine, PointElement, LinearScale, ChartDataLabels);
 
@@ -24,14 +25,18 @@ Chart.register(...registerables, TreeController, TreeChart, EdgeLine, PointEleme
 export class GraphComponent implements OnInit, OnDestroy, AfterViewInit {
 
   // public variables
+  // chart variables to not touch please
   nodes: Map<number, Node>;
   intervalId: any;
   chart!: TreeChart;
   chartCharacteristic: ChartContainer = { dataset: [], labels: [], edges: [] };
-  tree: BNode<number>;
-  usersID: Set<number>;
-  InTransactionNode: Set<number>;
 
+  // sim backend variables
+  tree: UserManagementNode;
+  usersSet : Set<User>;
+
+  // stats variables 
+  InTransactionNode: Set<number>;
   transactionNum : number = 0;
   mtxTx : number = 0;
   serverMtxTx : number = 0;
@@ -40,26 +45,31 @@ export class GraphComponent implements OnInit, OnDestroy, AfterViewInit {
   private transactionSub: Subscription[] = [];
 
   constructor(private transactionService: TransactionService) {
-    this.tree = new BNode(undefined, MAX_DEGREE, this.transactionService);
+    this.tree = new UserManagementNode(undefined, MAX_DEGREE, new BNode<User>(undefined, 10), this.transactionService);
     this.nodes = new Map<number, Node>();
-    this.usersID = new Set();
+    // this.usersID = new Set();
     this.InTransactionNode = new Set();
+    this.usersSet = new Set();
   }
 
   ngOnInit(): void {
-    this.transactionService.transactionArriving$.subscribe(userId => {
-      this.InTransactionNode.add(userId);
+    this.transactionService.transactionArriving$.subscribe(u => {
+      // const userId :  number =(u as User).get_id();
+      // console.log('txA', userId);
+      // this.InTransactionNode.add(userId);
     });
 
-    this.transactionService.transactionLeaving$.subscribe(userId => {
-      if(this.InTransactionNode.delete(userId)){
-        if(this.tree === this.tree.search(userId)){
-          this.serverMtxTx += 1;
-        }
-        else {
-          this.mtxTx += 1;
-        }
-      }
+    this.transactionService.transactionLeaving$.subscribe(u => {
+      // const userId :  number =(u as User).get_id();
+      // console.log('txL', userId);
+      // if(this.InTransactionNode.delete(userId)){
+      //   if(this.tree === this.tree.search(userId)){
+      //     this.serverMtxTx += 1;
+      //   }
+      //   else {
+      //     this.mtxTx += 1;
+      //   }
+      // }
     });
 
     // put some nodes to start
@@ -78,18 +88,16 @@ export class GraphComponent implements OnInit, OnDestroy, AfterViewInit {
 
   ngAfterViewInit(): void {
     // create and render the initial graph
-    this.nodes = this.tree.bnode_tree_to_node_map();
+    this.nodes = this.tree.UserManagementNode_tree_to_node_map();
     this.updateChartCharacteristic();
     this.createGraphChart();
   }
 
   private initializeNodes(): void {
-    this.tree.insert_child(INITIAL_NODE_ID, INITIAL_NODE_ID);
-    this.usersID.add(INITIAL_NODE_ID);
-    for (let i = 1; i <= NUMBER_OF_INITIAL_NODE; i++) {
+    this.usersSet.add(this.tree.insert_child(INITIAL_NODE_ID, `${INITIAL_NODE_ID}`));
+    for (let i = 1; i <= INITIAL_NODE_NUMBER; i++) {
       let random = Math.random() * 10;
-      this.tree.insert_child(i, random);
-      this.usersID.add(i);
+      this.usersSet.add(this.tree.insert_child(i, `${random}`));
     }
   }
 
@@ -97,18 +105,17 @@ export class GraphComponent implements OnInit, OnDestroy, AfterViewInit {
     if (randomNumber <= PROBABILITY_OF_ADDING_USER) {
       // get each second a different number of 3 numbers
       const timestamp = Math.trunc(Date.now() / 1000) % 10000;
-      this.tree.insert_child(timestamp, randomNumber);
-      this.usersID.add(timestamp);
+      this.usersSet.add(this.tree.insert_child(timestamp, `${randomNumber}`));
     }
 
     // making the user agent do a random actin
-    this.usersID.forEach(id => this.handleAgent(id));
-    this.nodes = this.tree.bnode_tree_to_node_map();
+    this.usersSet.forEach(u => this.handleAgent(u));
+    this.nodes = this.tree.UserManagementNode_tree_to_node_map();
     this.updateChart();
 
+    // update the stats 
     const stats : number[] = [];
-    // const mTx : number = this.mtxTx - this.transactionNum;
-    stats.push(this.usersID.size);
+    stats.push(this.usersSet.size);
     stats.push(this.mtxTx);
     stats.push(this.serverMtxTx);
     stats.push(this.transactionNum);
@@ -118,12 +125,19 @@ export class GraphComponent implements OnInit, OnDestroy, AfterViewInit {
     this.transactionNum = 0;
   }
 
-  handleAgent(id: number): void {
-    const action = (Math.trunc(Math.random() * 10)) % 3;
-    if (action === 1) {
-      const transaction: Transaction = { writes: [id], reads: [id] };
-      this.tree.search(id)?.create_transaction(transaction);
+  handleAgent(user : User): void {
+    const action = (Math.trunc(Math.random() * 10)) % ACTIONS_NUMBERS;
+    if (action <= TX_ACTION_NUMBERS) {
+      const transaction: Transaction = { writes: ['hello'], reads: ['world'] };
+      const userArray : User[] = Array.from(this.usersSet);
+      const randomIndex = Math.floor(Math.random() * userArray.length);
+      const tragetId = userArray[randomIndex].get_id();
+      user.send_transaction(transaction, [tragetId]);
       this.transactionNum += 1;
+    }
+    if(action >= TX_ACTION_NUMBERS && action <= (TX_ACTION_NUMBERS + DELETE_ACTION_NUMBERS)) {
+      user.delete_self();
+      this.usersSet.delete(user);
     }
     // Add other actions as needed
   }
@@ -160,7 +174,6 @@ export class GraphComponent implements OnInit, OnDestroy, AfterViewInit {
       maxDepth = Math.max(maxDepth, node.depth);
 
       // set the labels with the good format
-      // labels.push(node.value.toString().replace(/,/g, '|'));
       labels.push(node.value.toString());
       // set the edges at the good format
       if(node.parent !== null && node.parent !== undefined){
@@ -216,7 +229,6 @@ export class GraphComponent implements OnInit, OnDestroy, AfterViewInit {
           data: this.chartCharacteristic.dataset,
           edges: this.chartCharacteristic.edges,
           pointRadius: 5,
-          // pointBackgroundColor: '#F4F6FC',
           pointBorderWidth: 3,
           pointBorderColor: '#5436EA',
           borderWidth: 5,

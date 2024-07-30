@@ -8,8 +8,8 @@ export class TransactionService {
 
   constructor() { }
 
-  private transactionArrivingSource = new BehaviorSubject<number>(0);
-  private transactionLeavingSource = new BehaviorSubject<number>(0);
+  private transactionArrivingSource = new BehaviorSubject<any>(0);
+  private transactionLeavingSource = new BehaviorSubject<any>(0);
   private dataSource = new BehaviorSubject<number[]>([]);
 
   transactionArriving$ = this.transactionArrivingSource.asObservable();
@@ -17,12 +17,12 @@ export class TransactionService {
   data$ = this.dataSource.asObservable();
 
 
-  transactionIsArriving(id: number) {
-    this.transactionArrivingSource.next(id);
+  transactionIsArriving(data: any) {
+    this.transactionArrivingSource.next(data);
   }
 
-  transactionIsLeaving(id: number) {
-    this.transactionLeavingSource.next(id);
+  transactionIsLeaving(data: any) {
+    this.transactionLeavingSource.next(data);
   }
 
   updateTxData(newData: number[]) {

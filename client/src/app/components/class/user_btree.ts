@@ -4,8 +4,6 @@ import { MAX_BUBBLE_UP_WAIT_TIME,MAX_TRANSACTION_WAIT_TIME,MIN_BUBBLE_UP_WAIT_TI
 import { TransactionService } from "src/app/services/transaction.service";
 import { BNode } from "src/app/components/class/btree"
 
-
-
 type Key = number;
 type Nullable<K> = undefined | K;
 type Data = string;
@@ -15,7 +13,7 @@ function process_transactions(transactions:Array<Transaction>){
   transactions.forEach((t) => {
     output.push(`transaction : w => ${t.reads.toString()}, r => ${t.writes.toString()}`);
   })
-  console.log(output.toString());
+  // console.log(output.toString());
 }
 
 export class User{
@@ -24,11 +22,19 @@ export class User{
   private curNode:UserManagementNode;
   private searchNode:BNode<Nullable<User>>;
 
-  constructor(userID:Key, data:Data, curUserManagementNode:UserManagementNode, searchNode:BNode<Nullable<User>>){
+  constructor(userID:Key, data:Data, curUserManagementNode:UserManagementNode, searchNode:BNode<Nullable<User>>, private transactionService : TransactionService){
     this.userID = userID;
     this.data = data;
     this.curNode = curUserManagementNode;
     this.searchNode = searchNode;
+  }
+  
+  //Signals
+  transaction_is_arriving(u: User){
+    this.transactionService.transactionIsArriving(u);
+  }
+  transaction_is_leaving(u: User){
+    this.transactionService.transactionIsLeaving(u);
   }
 
   // Getters and setters
@@ -44,6 +50,7 @@ export class User{
   get_data():Data{
     return this.data;
   }
+  get_id() : Key { return this.userID; }
 
   // Transactions
   send_transaction(transaction:Transaction, targets:Key[]){
@@ -55,7 +62,7 @@ export class User{
       (ret as User).accept_transaction(transaction, this.userID);
     }
   }
-  async accept_transaction(transaction:Transaction, from:Key){
+  private async accept_transaction(transaction:Transaction, from:Key){
     // console.log("Received transaction from " + from)
     this.curNode.create_transaction(transaction, this.userID)
   }
@@ -72,14 +79,6 @@ export class User{
   }
 }
 export class UserManagementNode {
-  //Signals
-  transaction_is_arriving(id: number){
-    // this.transactionService.transactionIsArriving(id);
-  }
-  transaction_is_leaving(id: number){
-    // this.transactionService.transactionIsLeaving(id);
-  }
-  
   // Data
   private parent:Nullable<UserManagementNode>;
   private children:Array<UserManagementNode> = [];
@@ -98,6 +97,14 @@ export class UserManagementNode {
     this.minNumberOfThresholds = Math.floor((maxNumberOfThresholds)/2)
   }
 
+  // //Signals
+  // transaction_is_arriving(u: User){
+  //   this.transactionService.transactionIsArriving(u);
+  // }
+  // transaction_is_leaving(u: User){
+  //   this.transactionService.transactionIsLeaving(u);
+  // }
+
   // Transactions
   private my_lock = new Mutex();
   private all_cur_transactions:Array<Transaction> = []
@@ -106,12 +113,12 @@ export class UserManagementNode {
   }
   private async _data_collection(transactions:Array<Transaction>, userID?:Key):Promise<void>{
     // Sending the signals
-    if (typeof userID !== "undefined"){
-      this.transaction_is_arriving(userID);
-    }
-    else{
-      this.transaction_is_arriving(this.thresholds[0]);
-    }
+    // if (typeof userID !== "undefined"){
+    //   this.transaction_is_arriving(userID);
+    // }
+    // else{
+    //   this.transaction_is_arriving(this.thresholds[0]);
+    // }
 
     // console.log("New data arrived at " + this.thresholds)
     await this.my_lock.acquire();
@@ -128,7 +135,7 @@ export class UserManagementNode {
   }
   private async _bubble_up(){
     // Send the signal
-    this.transaction_is_leaving(this.thresholds[0]);
+    // this.transaction_is_leaving(this.thresholds[0]);
 
     // console.log("Bubbling up at " + this.thresholds)
     await this.my_lock.acquire();
@@ -249,7 +256,7 @@ export class UserManagementNode {
   private _add_data_to_node(userID:Key, data:Data):User{
     //Assuming that the userID doesn't exist in the array
     //Add to arrays
-    let user = new User(userID, data, this, this.searchNode)
+    let user = new User(userID, data, this, this.searchNode, this.transactionService);
     this.searchNode.insert_child(userID, user);
     if (this.thresholds.length == 0){
       this.thresholds.push(userID);
