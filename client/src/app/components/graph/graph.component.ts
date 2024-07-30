@@ -47,29 +47,24 @@ export class GraphComponent implements OnInit, OnDestroy, AfterViewInit {
   constructor(private transactionService: TransactionService) {
     this.tree = new UserManagementNode(undefined, MAX_DEGREE, new BNode<User>(undefined, 10), this.transactionService);
     this.nodes = new Map<number, Node>();
-    // this.usersID = new Set();
     this.InTransactionNode = new Set();
     this.usersSet = new Set();
   }
 
   ngOnInit(): void {
     this.transactionService.transactionArriving$.subscribe(u => {
-      // const userId :  number =(u as User).get_id();
-      // console.log('txA', userId);
-      // this.InTransactionNode.add(userId);
+      this.InTransactionNode.add(u);
     });
 
     this.transactionService.transactionLeaving$.subscribe(u => {
-      // const userId :  number =(u as User).get_id();
-      // console.log('txL', userId);
-      // if(this.InTransactionNode.delete(userId)){
-      //   if(this.tree === this.tree.search(userId)){
-      //     this.serverMtxTx += 1;
-      //   }
-      //   else {
-      //     this.mtxTx += 1;
-      //   }
-      // }
+      if(this.InTransactionNode.delete(u)){
+        if(this.tree === this.tree.search(u)){
+          this.serverMtxTx += 1;
+        }
+        else {
+          this.mtxTx += 1;
+        }
+      }
     });
 
     // put some nodes to start

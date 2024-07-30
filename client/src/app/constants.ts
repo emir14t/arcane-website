@@ -2,7 +2,7 @@ export const MAX_DEGREE = 6;
 export const LAST_INDEX = 1;
 
 export const INITIAL_NODE_ID = 0;
-export const INITIAL_NODE_NUMBER = 7;
+export const INITIAL_NODE_NUMBER = 50;
 export const PROBABILITY_OF_ADDING_USER = 75;
 export const STATS_WINDOW = 100;
 

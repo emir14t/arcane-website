@@ -22,19 +22,11 @@ export class User{
   private curNode:UserManagementNode;
   private searchNode:BNode<Nullable<User>>;
 
-  constructor(userID:Key, data:Data, curUserManagementNode:UserManagementNode, searchNode:BNode<Nullable<User>>, private transactionService : TransactionService){
+  constructor(userID:Key, data:Data, curUserManagementNode:UserManagementNode, searchNode:BNode<Nullable<User>>){
     this.userID = userID;
     this.data = data;
     this.curNode = curUserManagementNode;
     this.searchNode = searchNode;
-  }
-  
-  //Signals
-  transaction_is_arriving(u: User){
-    this.transactionService.transactionIsArriving(u);
-  }
-  transaction_is_leaving(u: User){
-    this.transactionService.transactionIsLeaving(u);
   }
 
   // Getters and setters
@@ -97,13 +89,13 @@ export class UserManagementNode {
     this.minNumberOfThresholds = Math.floor((maxNumberOfThresholds)/2)
   }
 
-  // //Signals
-  // transaction_is_arriving(u: User){
-  //   this.transactionService.transactionIsArriving(u);
-  // }
-  // transaction_is_leaving(u: User){
-  //   this.transactionService.transactionIsLeaving(u);
-  // }
+  //Signals
+  transaction_is_arriving(userID : number){
+    this.transactionService.transactionIsArriving(userID);
+  }
+  transaction_is_leaving(userID : number){
+    this.transactionService.transactionIsLeaving(userID);
+  }
 
   // Transactions
   private my_lock = new Mutex();
@@ -113,12 +105,12 @@ export class UserManagementNode {
   }
   private async _data_collection(transactions:Array<Transaction>, userID?:Key):Promise<void>{
     // Sending the signals
-    // if (typeof userID !== "undefined"){
-    //   this.transaction_is_arriving(userID);
-    // }
-    // else{
-    //   this.transaction_is_arriving(this.thresholds[0]);
-    // }
+    if (typeof userID !== "undefined"){
+      this.transaction_is_arriving(userID);
+    }
+    else{
+      this.transaction_is_arriving(this.thresholds[0]);
+    }
 
     // console.log("New data arrived at " + this.thresholds)
     await this.my_lock.acquire();
@@ -135,7 +127,7 @@ export class UserManagementNode {
   }
   private async _bubble_up(){
     // Send the signal
-    // this.transaction_is_leaving(this.thresholds[0]);
+    this.transaction_is_leaving(this.thresholds[0]);
 
     // console.log("Bubbling up at " + this.thresholds)
     await this.my_lock.acquire();
@@ -256,7 +248,7 @@ export class UserManagementNode {
   private _add_data_to_node(userID:Key, data:Data):User{
     //Assuming that the userID doesn't exist in the array
     //Add to arrays
-    let user = new User(userID, data, this, this.searchNode, this.transactionService);
+    let user = new User(userID, data, this, this.searchNode);
     this.searchNode.insert_child(userID, user);
     if (this.thresholds.length == 0){
       this.thresholds.push(userID);
