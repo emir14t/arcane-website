@@ -20,3 +20,8 @@ export interface Transaction{
     reads: any[]
 }
   
+export interface Table {
+    column1 : number,
+    column2 : number,
+    column3 : number,
+}
