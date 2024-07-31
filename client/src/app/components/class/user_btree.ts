@@ -1,20 +1,12 @@
 import { Node,Transaction } from "src/app/interface/interface";
 import { Mutex } from 'async-mutex';
-import { MAX_BUBBLE_UP_WAIT_TIME,MAX_TRANSACTION_WAIT_TIME,MIN_BUBBLE_UP_WAIT_TIME,MIN_TRANSACTION_WAIT_TIME } from "src/app/constants"; 
+import { MAX_BUBBLE_UP_WAIT_TIME,MAX_TRANSACTION_WAIT_TIME,MIN_BUBBLE_UP_WAIT_TIME,MIN_TRANSACTION_WAIT_TIME, SERVER_ID } from "src/app/constants"; 
 import { TransactionService } from "src/app/services/transaction.service";
 import { BNode } from "src/app/components/class/btree"
 
 type Key = number;
 type Nullable<K> = undefined | K;
 type Data = string;
-
-function process_transactions(transactions:Array<Transaction>){
-  let output:Array<String> = [];
-  transactions.forEach((t) => {
-    output.push(`transaction : w => ${t.reads.toString()}, r => ${t.writes.toString()}`);
-  })
-  // console.log(output.toString());
-}
 
 export class User{
   private userID:Key;
@@ -133,7 +125,7 @@ export class UserManagementNode {
     await this.my_lock.acquire();
     try{
       if (typeof this.parent === "undefined"){
-        setTimeout(process_transactions.bind(this), Math.random() * (MAX_TRANSACTION_WAIT_TIME-MIN_TRANSACTION_WAIT_TIME) + MIN_TRANSACTION_WAIT_TIME, this.all_cur_transactions);
+        setTimeout(this.process_transactions.bind(this), Math.random() * (MAX_TRANSACTION_WAIT_TIME-MIN_TRANSACTION_WAIT_TIME) + MIN_TRANSACTION_WAIT_TIME, this.all_cur_transactions);
       }
       else{
         setTimeout((this.parent as UserManagementNode)._data_collection.bind(this.parent as UserManagementNode), Math.random() * (MAX_TRANSACTION_WAIT_TIME-MIN_TRANSACTION_WAIT_TIME) + MIN_TRANSACTION_WAIT_TIME, this.all_cur_transactions);
@@ -144,6 +136,16 @@ export class UserManagementNode {
     finally{
       this.my_lock.release();
     }
+  }
+
+  process_transactions(transactions:Array<Transaction>){
+    this.transaction_is_arriving(SERVER_ID);
+    let output:Array<String> = [];
+    transactions.forEach((t) => {
+      output.push(`transaction : w => ${t.reads.toString()}, r => ${t.writes.toString()}`);
+    })
+    // console.log(output.toString());
+    this.transaction_is_leaving(SERVER_ID);
   }
 
   // Search algorithm (returns the Data associated with the userID if it exists and undefined if the userID doesn't exist)
