@@ -37,7 +37,7 @@ export class ServerGraphComponent implements OnInit, AfterViewInit {
 
   private initializeNodes(): void {
     for (let i = 0; i < SERVER_BRANCHES_NUM; i++) {
-      this.labelList.push(`branch #${i}`);
+      this.labelList.push(`branch #${i} K`);
       this.nodeList.push({
           x: i,
           y: 1,
@@ -53,15 +53,21 @@ export class ServerGraphComponent implements OnInit, AfterViewInit {
     if (this.chart) {
       this.chart.destroy(); 
     }
-    this.chart =  new TreeChart('serverChart', {
+    this.chart = new TreeChart('serverChart', {
       plugins: [ChartDataLabels],
       data: {
         labels: this.labelList,
         datasets: [{
           data: this.nodeList,
+          pointRadius: 3,
+          pointBorderWidth: 3,
+          pointBorderColor: '#5436EA',
+          borderWidth: 5,
+          borderColor: opacity('#B100E8', 0.1),
         }]
       },
       options: {
+        maintainAspectRatio: false,
         layout: {
           padding: {
             top: 20,
@@ -71,7 +77,21 @@ export class ServerGraphComponent implements OnInit, AfterViewInit {
           }
         },
         plugins: {
-          tooltip:{
+          datalabels: {
+            display: (context) => context.dataIndex === 0, 
+            formatter: (value, context) => {
+              const labels = context.chart.data.labels;
+              return labels ? labels[context.dataIndex] : '';
+            }, 
+            align: 'end',
+            anchor: 'end',
+            color: '#5436EA',
+            font: {
+              size: 30,
+              weight: 'bold'
+            }
+          },
+          tooltip: {
             enabled: true,
             displayColors: false,
             backgroundColor: opacity('#5436EA', 0.75),
@@ -82,6 +102,17 @@ export class ServerGraphComponent implements OnInit, AfterViewInit {
               size: 20,
               weight: 'bold'
             },
+            callbacks: {
+              title: (tooltipItems) => {
+                // Return the label as the title
+                const item = tooltipItems[0];
+                return item.label || '';
+              },
+              label: () => {
+                // Do not display any additional label information
+                return '';
+              }
+            }
           },
           title: {
             display: true,
@@ -100,16 +131,18 @@ export class ServerGraphComponent implements OnInit, AfterViewInit {
           }
         },
         scales: {
-          x:{
-            min:0,
+          x: {
+            min: 0,
             max: SERVER_BRANCHES_NUM
           },
-          y:{
-            min:0,
-            max:1
+          y: {
+            reverse:  true,
+            min: 0,
+            max: 1
           }
         }
       }
     });
-  }
+  }  
+
 }

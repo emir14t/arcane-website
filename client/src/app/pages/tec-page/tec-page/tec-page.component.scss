@@ -23,13 +23,17 @@
         }
     }   
 
-    .app-server-graph {
+    .server-container {
         height: 600px;
         width: 800px;
         display: flex;
         padding: 0px;
         margin: 0px;
         gap: 20px; 
+    }
+
+    .server-container app-server-graph {
+        flex: 1;
     }
 
     .graph-container {
