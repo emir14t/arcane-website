@@ -23,6 +23,15 @@
         }
     }   
 
+    .app-server-graph {
+        height: 600px;
+        width: 800px;
+        display: flex;
+        padding: 0px;
+        margin: 0px;
+        gap: 20px; 
+    }
+
     .graph-container {
         display: flex;
         padding: 0px;
