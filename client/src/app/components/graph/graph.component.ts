@@ -9,7 +9,7 @@ import opacity from 'hex-color-opacity';
 // our own code import
 import { Node, ChartContainer, Transaction } from 'src/app/interface/interface';
 import { User, UserManagementNode } from '../class/user_btree';
-import { INITIAL_NODE_ID, MAX_DEGREE, INITIAL_NODE_NUMBER, PROBABILITY_OF_ADDING_USER, ACTIONS_NUMBERS, TX_ACTION_NUMBERS , DELETE_ACTION_NUMBERS} from 'src/app/constants';
+import { INITIAL_NODE_ID, MAX_DEGREE, INITIAL_NODE_NUMBER, SERVER_ID, ADDING_USER_PROBABILITY, DELETE_USER_PROBABILITY, TRANSACTION_PROBABILITY, SIM_TICK} from 'src/app/constants';
 import { TransactionService } from 'src/app/services/transaction.service';
 import { Subscription } from 'rxjs';
 import { BNode } from '../class/btree';
@@ -53,24 +53,24 @@ export class GraphComponent implements OnInit, OnDestroy, AfterViewInit {
 
   ngOnInit(): void {
     this.transactionService.transactionArriving$.subscribe(u => {
+      if(u === SERVER_ID){return;}
       this.InTransactionNode.add(u);
     });
 
     this.transactionService.transactionLeaving$.subscribe(u => {
+      if(u === SERVER_ID){
+        this.serverMtxTx += 1;
+        return;
+      }
       if(this.InTransactionNode.delete(u)){
-        if(this.tree === this.tree.search(u)){
-          this.serverMtxTx += 1;
-        }
-        else {
-          this.mtxTx += 1;
-        }
+        this.mtxTx += 1;
       }
     });
 
     // put some nodes to start
     this.initializeNodes();
     // setup tick frequency for user agents
-    this.intervalId = setInterval(() => this.handleTick(Math.floor(Math.random() * 100)), 1000);
+    this.intervalId = setInterval(() => this.handleTick(), SIM_TICK);
   }
 
   ngOnDestroy(): void {
@@ -96,11 +96,20 @@ export class GraphComponent implements OnInit, OnDestroy, AfterViewInit {
     }
   }
 
-  handleTick(randomNumber: number): void {
-    if (randomNumber <= PROBABILITY_OF_ADDING_USER) {
-      // get each second a different number of 3 numbers
-      const timestamp = Math.trunc(Date.now() / 1000) % 10000;
-      this.usersSet.add(this.tree.insert_child(timestamp, `${randomNumber}`));
+  handleTick(): void {
+    const simpleRand : number = Math.random();
+    const random : number = Math.trunc(simpleRand * 100);
+    const deleteRange = ADDING_USER_PROBABILITY + DELETE_USER_PROBABILITY;
+
+    if (random <= ADDING_USER_PROBABILITY) {
+      const uniqueId = Number(Math.random().toString().substring(2,9));
+      this.usersSet.add(this.tree.insert_child(uniqueId, `${random}`));
+    }
+    else if(random > ADDING_USER_PROBABILITY && random <= deleteRange){
+      const userArray : User[] = Array.from(this.usersSet);
+      const userToDelete : User = userArray[(random % userArray.length)];
+      this.usersSet.delete(userToDelete);
+      this.tree = this.tree.delete(userToDelete.get_id());
     }
 
     // making the user agent do a random actin
@@ -121,18 +130,15 @@ export class GraphComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   handleAgent(user : User): void {
-    const action = (Math.trunc(Math.random() * 10)) % ACTIONS_NUMBERS;
-    if (action <= TX_ACTION_NUMBERS) {
+    const simpleRand : number = Math.random();
+    const random : number = Math.trunc(simpleRand * 100);
+    if (random <= TRANSACTION_PROBABILITY) {
       const transaction: Transaction = { writes: ['hello'], reads: ['world'] };
       const userArray : User[] = Array.from(this.usersSet);
-      const randomIndex = Math.floor(Math.random() * userArray.length);
+      const randomIndex = Math.floor(simpleRand * userArray.length);
       const tragetId = userArray[randomIndex].get_id();
       user.send_transaction(transaction, [tragetId]);
       this.transactionNum += 1;
-    }
-    if(action >= TX_ACTION_NUMBERS && action <= (TX_ACTION_NUMBERS + DELETE_ACTION_NUMBERS)) {
-      user.delete_self();
-      this.usersSet.delete(user);
     }
     // Add other actions as needed
   }
