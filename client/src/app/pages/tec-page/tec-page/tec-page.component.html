@@ -23,15 +23,19 @@
     <h3>Network Structure</h3>
     <h4>Tree Graph Structure</h4>
     <p>The network consists of users organized into branches of a tree graph. The first 63,000 users are connected directly to the server, forming the root of the tree graph. New users are assigned to a branch and inserted into the tree graph, allowing the app to balance itself dynamically. Each node in the connection graph is composed of 3 to 6 users connected via WebSockets.</p>
-    <h2>graph of server connection there</h2>
-    <p><em>Graph 1: Server and the first 63,000 users connected</em></p>
+    <div class="server-container">
+        <div class="c">
+            <app-server-graph></app-server-graph>
+            <p><em>Graph 1: Server and the first 63,000 users connected</em></p>    
+        </div>
+    </div>
 
     <h4>Branch Structure</h4>
     <p>Each branch of the tree consists of nodes where groups of users work together to ensure redundancy and balance.</p>
-    <div class="graph-container">
+    <span class="graph-container">
         <app-graph></app-graph>
         <app-chart></app-chart>
-    </div>
+    </span>
     <p><em>Graph 2: A branch with nodes composed of user groups ensuring redundancy</em></p>
 
     <h3>Memory Model</h3>
@@ -43,8 +47,10 @@
         <li>Users have a cache for frequently used addresses and IPs, using predictive algorithms to prefetch data.</li>
         <li>A redundancy protocol ensures data consistency and redundancy within each node.</li>
     </ul>
-    <h2>memory model graph there</h2>
-    <p><em>Graph 3: Memory tables with B+-tree structure</em></p>
+    <!-- <div class="memore-graph">
+        <h2>memory model graph there</h2>
+    </div>
+    <p><em>Graph 3: Memory tables with B+-tree structure</em></p> -->
 
     <h3>Transaction Process</h3>
     <p>Transactions in our network are secure and efficient, thanks to our cryptographic proof system:</p>

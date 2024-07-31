@@ -60,6 +60,7 @@ export class ServerGraphComponent implements OnInit, AfterViewInit {
         datasets: [{
           data: this.nodeList,
           pointRadius: 3,
+          pointHitRadius: 5,
           pointBorderWidth: 3,
           pointBorderColor: '#5436EA',
           borderWidth: 5,
@@ -67,7 +68,8 @@ export class ServerGraphComponent implements OnInit, AfterViewInit {
         }]
       },
       options: {
-        maintainAspectRatio: false,
+        // maintainAspectRatio: false,
+        animation: false,
         layout: {
           padding: {
             top: 20,
@@ -116,7 +118,7 @@ export class ServerGraphComponent implements OnInit, AfterViewInit {
           },
           title: {
             display: true,
-            text: "Server and branches",
+            text: "Server Conection To Branches",
             color: '#0D0628',
             font: {
               size: 24,

@@ -20,10 +20,6 @@ export class ChartComponent implements OnInit, AfterViewInit {
   chart!: Chart;
 
   constructor(private transactionService: TransactionService) {
-    // this.data1 = Array(STATS_WINDOW).fill(0);
-    // this.data2 = Array(STATS_WINDOW).fill(1);
-    // this.data3 = Array(STATS_WINDOW).fill(2);
-    // this.data4 = Array(STATS_WINDOW).fill(3);  
     this.data1 = [];
     this.data2 = [];
     this.data3 = [];
@@ -93,19 +89,19 @@ export class ChartComponent implements OnInit, AfterViewInit {
             backgroundColor: 'rgba(75, 192, 192, 0.2)',
           },
           {
-            label: 'Total of mtx tx',
+            label: 'Methex Tx',
             data: this.data2,
             borderColor: 'rgba(54, 162, 235, 1)',
             backgroundColor: 'rgba(54, 162, 235, 0.2)',
           },
           {
-            label: 'Num of mtx tx handled by server',
+            label: 'Tx handled by server',
             data: this.data3,
             borderColor: 'rgba(255, 206, 86, 1)',
             backgroundColor: 'rgba(255, 206, 86, 0.2)',
           },
           {
-            label: 'Total transactions',
+            label: 'Total transactions (Tx)',
             data: this.data4,
             borderColor: 'rgba(153, 102, 255, 1)',
             backgroundColor: 'rgba(153, 102, 255, 0.2)',
@@ -119,7 +115,7 @@ export class ChartComponent implements OnInit, AfterViewInit {
           },
           title:{
             display: true,
-            text: "Simulation stats",
+            text: "Simulation Statistics",
             color: '#0D0628',
             font: {
               size: 24,

@@ -258,7 +258,7 @@ export class GraphComponent implements OnInit, OnDestroy, AfterViewInit {
       },
       options: {
         animation: false,
-        maintainAspectRatio: false,
+        // maintainAspectRatio: false,
         layout: {
           padding: {
             top: 20,
@@ -299,7 +299,7 @@ export class GraphComponent implements OnInit, OnDestroy, AfterViewInit {
           },
           title: {
             display: true,
-            text: "Methex Architecture Simulation Of User Based Set Up",
+            text: "Simulation Of Branch #1",
             color: '#0D0628',
             font: {
               size: 24,
